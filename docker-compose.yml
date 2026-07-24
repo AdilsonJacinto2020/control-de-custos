@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fincontrol-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fincontrol
+      POSTGRES_PASSWORD: fincontrol
+      POSTGRES_DB: fincontrol
+    ports:
+      - "5432:5432"
+    volumes:
+      - fincontrol_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fincontrol"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./controle-custos-backend
+      target: dev
+    container_name: fincontrol-backend
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: fincontrol
+      DB_PASSWORD: fincontrol
+      DB_DATABASE: fincontrol
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./controle-custos-backend:/app
+      - backend_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./controle-custos-frontend
+      target: dev
+    container_name: fincontrol-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./controle-custos-frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  fincontrol_pgdata:
+  backend_node_modules:
+  frontend_node_modules:
