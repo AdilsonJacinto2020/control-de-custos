@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  Wallet,
+  Receipt,
+  Trophy,
+  Loader2,
+  Inbox,
+  Trash2,
+  CircleAlert,
+} from 'lucide-react';
 import { despesasApi } from './api/despesas';
+import { CategoriaBarChart } from './components/CategoriaBarChart';
+import { StatCard } from './components/StatCard';
+import { CATEGORIA_META } from './categoriaMeta';
 import { CATEGORIAS, type Categoria, type Despesa } from './types';
 import './App.css';
 
@@ -82,19 +94,41 @@ function App() {
   );
 
   const totalPorCategoria = useMemo(() => {
-    const totais = new Map<string, number>();
+    const totais = new Map<Categoria, number>();
     for (const d of despesas) {
       totais.set(d.categoria, (totais.get(d.categoria) ?? 0) + Number(d.valor));
     }
     return Array.from(totais.entries()).sort((a, b) => b[1] - a[1]);
   }, [despesas]);
 
+  const categoriaTopo = totalPorCategoria[0];
+
   return (
     <div className="page">
       <header className="page-header">
-        <h1>FinControl Engine</h1>
-        <p>Controlo diário de despesas pessoais</p>
+        <div className="page-header-icon">
+          <Wallet size={26} strokeWidth={2.25} aria-hidden />
+        </div>
+        <div>
+          <h1>FinControl Engine</h1>
+          <p>Controlo diário de despesas pessoais</p>
+        </div>
       </header>
+
+      <section className="stat-row">
+        <StatCard icon={Wallet} label="Total gasto" value={formatoMoeda.format(totalGeral)} />
+        <StatCard
+          icon={Receipt}
+          label="Despesas registadas"
+          value={String(despesas.length)}
+        />
+        <StatCard
+          icon={Trophy}
+          label="Maior categoria"
+          value={categoriaTopo ? categoriaTopo[0] : '—'}
+          hint={categoriaTopo ? formatoMoeda.format(categoriaTopo[1]) : undefined}
+        />
+      </section>
 
       <main className="content">
         <section className="card form-card">
@@ -149,35 +183,42 @@ function App() {
             </label>
 
             <button type="submit" disabled={enviando}>
-              {enviando ? 'A guardar...' : 'Adicionar despesa'}
+              {enviando ? (
+                <>
+                  <Loader2 size={16} className="spin" aria-hidden /> A guardar...
+                </>
+              ) : (
+                'Adicionar despesa'
+              )}
             </button>
           </form>
-          {erro && <p className="erro">{erro}</p>}
+          {erro && (
+            <p className="erro">
+              <CircleAlert size={15} aria-hidden /> {erro}
+            </p>
+          )}
         </section>
 
         <section className="card resumo-card">
-          <h2>Resumo</h2>
-          <p className="total-geral">
-            Total: <strong>{formatoMoeda.format(totalGeral)}</strong>
-          </p>
-          <ul className="resumo-lista">
-            {totalPorCategoria.map(([cat, total]) => (
-              <li key={cat}>
-                <span>{cat}</span>
-                <span>{formatoMoeda.format(total)}</span>
-              </li>
-            ))}
-            {totalPorCategoria.length === 0 && (
-              <li className="vazio">Sem despesas registadas ainda.</li>
-            )}
-          </ul>
+          <h2>Gastos por categoria</h2>
+          <CategoriaBarChart
+            dados={totalPorCategoria}
+            total={totalGeral}
+            formatoMoeda={formatoMoeda}
+          />
         </section>
 
         <section className="card lista-card">
           <h2>Despesas</h2>
-          {carregando && <p>A carregar...</p>}
+          {carregando && (
+            <p className="estado">
+              <Loader2 size={16} className="spin" aria-hidden /> A carregar...
+            </p>
+          )}
           {!carregando && despesas.length === 0 && (
-            <p className="vazio">Nenhuma despesa registada.</p>
+            <p className="estado vazio">
+              <Inbox size={16} aria-hidden /> Nenhuma despesa registada.
+            </p>
           )}
           {!carregando && despesas.length > 0 && (
             <table>
@@ -196,17 +237,30 @@ function App() {
                     <td>{new Date(`${d.data}T00:00:00`).toLocaleDateString('pt-BR')}</td>
                     <td>{d.descricao}</td>
                     <td>
-                      <span className="badge">{d.categoria}</span>
+                      {(() => {
+                        const meta = CATEGORIA_META[d.categoria];
+                        const Icon = meta.icon;
+                        return (
+                          <span
+                            className="badge"
+                            style={{ color: meta.cor, background: `color-mix(in srgb, ${meta.cor} 14%, transparent)` }}
+                          >
+                            <Icon size={13} strokeWidth={2.25} aria-hidden />
+                            {d.categoria}
+                          </span>
+                        );
+                      })()}
                     </td>
-                    <td>{formatoMoeda.format(Number(d.valor))}</td>
+                    <td className="valor-cel">{formatoMoeda.format(Number(d.valor))}</td>
                     <td>
                       <button
                         type="button"
                         className="remover"
                         onClick={() => handleRemover(d.id)}
                         aria-label={`Remover despesa ${d.descricao}`}
+                        title="Remover despesa"
                       >
-                        Remover
+                        <Trash2 size={15} aria-hidden />
                       </button>
                     </td>
                   </tr>
