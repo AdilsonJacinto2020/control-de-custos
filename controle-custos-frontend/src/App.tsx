@@ -7,12 +7,18 @@ import {
   Inbox,
   Trash2,
   CircleAlert,
+  PlusCircle,
+  PieChart,
+  ListOrdered,
 } from 'lucide-react';
 import { despesasApi } from './api/despesas';
 import { CategoriaBarChart } from './components/CategoriaBarChart';
 import { StatCard } from './components/StatCard';
+import { StreakBanner } from './components/StreakBanner';
+import { Navbar } from './components/Navbar';
 import { CATEGORIA_META } from './categoriaMeta';
 import { CATEGORIAS, type Categoria, type Despesa } from './types';
+import { useAuth } from './context/AuthContext';
 import './App.css';
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -23,6 +29,7 @@ const formatoMoeda = new Intl.NumberFormat('pt-BR', {
 });
 
 function App() {
+  const { recordActivity } = useAuth();
   const [despesas, setDespesas] = useState<Despesa[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -71,6 +78,7 @@ function App() {
       setValor('');
       setData(hoje());
       setCategoria(CATEGORIAS[0]);
+      recordActivity();
       await carregarDespesas();
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao registar despesa');
@@ -105,26 +113,20 @@ function App() {
 
   return (
     <div className="page">
-      <header className="page-header">
-        <div className="page-header-icon">
-          <Wallet size={26} strokeWidth={2.25} aria-hidden />
-        </div>
-        <div>
-          <h1>FinControl Engine</h1>
-          <p>Controlo diário de despesas pessoais</p>
-        </div>
-      </header>
+      <Navbar />
+
+      <StreakBanner />
 
       <section className="stat-row">
-        <StatCard icon={Wallet} label="Total gasto" value={formatoMoeda.format(totalGeral)} />
+        <StatCard icon={Wallet} label="Total Investido/Gasto" value={formatoMoeda.format(totalGeral)} />
         <StatCard
           icon={Receipt}
-          label="Despesas registadas"
+          label="Lançamentos no Mês"
           value={String(despesas.length)}
         />
         <StatCard
           icon={Trophy}
-          label="Maior categoria"
+          label="Maior Volume"
           value={categoriaTopo ? categoriaTopo[0] : '—'}
           hint={categoriaTopo ? formatoMoeda.format(categoriaTopo[1]) : undefined}
         />
@@ -132,15 +134,17 @@ function App() {
 
       <main className="content">
         <section className="card form-card">
-          <h2>Nova despesa</h2>
+          <h2>
+            <PlusCircle size={20} className="text-primary" /> Novo Lançamento
+          </h2>
           <form onSubmit={handleSubmit} className="despesa-form">
             <label>
-              Descrição
+              Descrição do Gasto
               <input
                 type="text"
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
-                placeholder="Ex: Almoço"
+                placeholder="Ex: Almoço de negócios, Assinatura SaaS..."
                 required
               />
             </label>
@@ -185,22 +189,24 @@ function App() {
             <button type="submit" disabled={enviando}>
               {enviando ? (
                 <>
-                  <Loader2 size={16} className="spin" aria-hidden /> A guardar...
+                  <Loader2 size={16} className="spin" aria-hidden /> Registrando...
                 </>
               ) : (
-                'Adicionar despesa'
+                'Adicionar despesa (+XP)'
               )}
             </button>
           </form>
           {erro && (
             <p className="erro">
-              <CircleAlert size={15} aria-hidden /> {erro}
+              <CircleAlert size={16} aria-hidden /> {erro}
             </p>
           )}
         </section>
 
         <section className="card resumo-card">
-          <h2>Gastos por categoria</h2>
+          <h2>
+            <PieChart size={20} className="text-primary" /> Distribuição por Categoria
+          </h2>
           <CategoriaBarChart
             dados={totalPorCategoria}
             total={totalGeral}
@@ -209,64 +215,68 @@ function App() {
         </section>
 
         <section className="card lista-card">
-          <h2>Despesas</h2>
+          <h2>
+            <ListOrdered size={20} className="text-primary" /> Histórico de Despesas
+          </h2>
           {carregando && (
-            <p className="estado">
-              <Loader2 size={16} className="spin" aria-hidden /> A carregar...
-            </p>
+            <div className="estado">
+              <Loader2 size={20} className="spin" aria-hidden /> Carregando seus dados...
+            </div>
           )}
           {!carregando && despesas.length === 0 && (
-            <p className="estado vazio">
-              <Inbox size={16} aria-hidden /> Nenhuma despesa registada.
-            </p>
+            <div className="estado vazio">
+              <Inbox size={24} aria-hidden /> Nenhuma despesa encontrada. Crie a primeira para ganhar XP!
+            </div>
           )}
           {!carregando && despesas.length > 0 && (
-            <table>
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Descrição</th>
-                  <th>Categoria</th>
-                  <th>Valor</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {despesas.map((d) => (
-                  <tr key={d.id}>
-                    <td>{new Date(`${d.data}T00:00:00`).toLocaleDateString('pt-BR')}</td>
-                    <td>{d.descricao}</td>
-                    <td>
-                      {(() => {
-                        const meta = CATEGORIA_META[d.categoria];
-                        const Icon = meta.icon;
-                        return (
-                          <span
-                            className="badge"
-                            style={{ color: meta.cor, background: `color-mix(in srgb, ${meta.cor} 14%, transparent)` }}
-                          >
-                            <Icon size={13} strokeWidth={2.25} aria-hidden />
-                            {d.categoria}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    <td className="valor-cel">{formatoMoeda.format(Number(d.valor))}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="remover"
-                        onClick={() => handleRemover(d.id)}
-                        aria-label={`Remover despesa ${d.descricao}`}
-                        title="Remover despesa"
-                      >
-                        <Trash2 size={15} aria-hidden />
-                      </button>
-                    </td>
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th>Valor</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {despesas.map((d) => (
+                    <tr key={d.id}>
+                      <td>{new Date(`${d.data}T00:00:00`).toLocaleDateString('pt-BR')}</td>
+                      <td><strong>{d.descricao}</strong></td>
+                      <td>
+                        {(() => {
+                          const meta = CATEGORIA_META[d.categoria];
+                          const Icon = meta.icon;
+                          return (
+                            <span
+                              className="badge"
+                              style={{ color: meta.cor, background: `color-mix(in srgb, ${meta.cor} 14%, transparent)` }}
+                            >
+                              <Icon size={14} strokeWidth={2.25} aria-hidden />
+                              {d.categoria}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="valor-cel">{formatoMoeda.format(Number(d.valor))}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="remover"
+                          onClick={() => handleRemover(d.id)}
+                          aria-label={`Remover despesa ${d.descricao}`}
+                          title="Remover despesa"
+                        >
+                          <Trash2 size={15} aria-hidden />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       </main>
