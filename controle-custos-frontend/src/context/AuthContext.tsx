@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { UserProfile, GamificationStats } from '../types/gamification';
+import { authApi } from '../api/auth';
 import confetti from 'canvas-confetti';
 
 interface AuthContextType {
   user: UserProfile | null;
   gamification: GamificationStats;
   loginGoogle: (credential: string) => Promise<void>;
+  loginGuest: () => Promise<void>;
   logout: () => void;
   checkInZeroExpense: () => Promise<void>;
   recordActivity: () => void;
@@ -13,19 +15,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const DEFAULT_USER: UserProfile = {
-  id: 'guest_user',
-  name: 'Usuário Convidado',
-  email: 'usuario@fincontrol.app',
-  streak: 3,
-  bestStreak: 7,
-  lastCheckinDate: new Date().toISOString().slice(0, 10),
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('fincontrol_user');
-    return saved ? JSON.parse(saved) : DEFAULT_USER;
+    return saved ? JSON.parse(saved) : null;
   });
 
   useEffect(() => {
@@ -33,8 +26,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('fincontrol_user', JSON.stringify(user));
     } else {
       localStorage.removeItem('fincontrol_user');
+      localStorage.removeItem('fincontrol_token');
     }
   }, [user]);
+
+  // Se não houver usuário autenticado ao inicializar, podemos iniciar sessão como convidado
+  useEffect(() => {
+    const token = localStorage.getItem('fincontrol_token');
+    if (!token && !user) {
+      loginGuest();
+    }
+  }, []);
 
   const recordActivity = () => {
     if (!user) return;
@@ -65,24 +67,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginGoogle = async (credential: string) => {
     try {
-      // Decodificar JWT Google básico client-side
-      const base64Url = credential.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-      const data = JSON.parse(jsonPayload);
+      const response = await authApi.loginGoogle(credential);
+      localStorage.setItem('fincontrol_token', response.accessToken);
 
       const loggedUser: UserProfile = {
-        id: data.sub || 'google_user',
-        name: data.name || 'Usuário Google',
-        email: data.email,
-        picture: data.picture,
+        id: response.user.id,
+        name: response.user.nome || 'Usuário Google',
+        email: response.user.email,
+        picture: response.user.avatarUrl,
         streak: (user?.streak || 0) + 1,
-        bestStreak: Math.max((user?.bestStreak || 0), (user?.streak || 0) + 1),
+        bestStreak: Math.max(user?.bestStreak || 0, (user?.streak || 0) + 1),
         lastCheckinDate: new Date().toISOString().slice(0, 10),
       };
 
@@ -93,15 +87,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         origin: { y: 0.6 },
       });
     } catch (e) {
-      console.error('Erro ao processar Google Login:', e);
+      console.error('Erro ao processar Google Login no backend:', e);
+      throw e;
+    }
+  };
+
+  const loginGuest = async () => {
+    try {
+      const response = await authApi.loginGuest();
+      localStorage.setItem('fincontrol_token', response.accessToken);
+
+      const guestUser: UserProfile = {
+        id: response.user.id,
+        name: response.user.nome || 'Convidado Demo',
+        email: response.user.email,
+        streak: 1,
+        bestStreak: 1,
+        lastCheckinDate: new Date().toISOString().slice(0, 10),
+      };
+
+      setUser(guestUser);
+    } catch (e) {
+      console.error('Erro ao autenticar como convidado:', e);
     }
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('fincontrol_token');
+    localStorage.removeItem('fincontrol_user');
   };
 
-  // Cálculo de Gamificação
+  // Gamificação
   const streak = user?.streak || 0;
   const bestStreak = user?.bestStreak || 0;
   const xp = streak * 120 + 50;
@@ -162,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         gamification,
         loginGoogle,
+        loginGuest,
         logout,
         checkInZeroExpense,
         recordActivity,

@@ -3,9 +3,24 @@ import { DespesasController } from './despesas.controller';
 import { DespesasService } from './despesas.service';
 import { Despesa } from './despesa.entity';
 import { CategoriaDespesa } from './categoria-despesa.enum';
+import { Usuario } from '../usuarios/usuario.entity';
+
+const mockUser: Usuario = {
+  id: 'user-uuid-1234',
+  nome: 'Usuário Teste',
+  email: 'teste@fincontrol.app',
+  telefoneWhatsapp: '+244923000000',
+  googleId: 'google-sub-123',
+  avatarUrl: '',
+  moedaReferencia: null as any,
+  modeloOrcamento: null as any,
+  criadoEm: new Date(),
+  atualizadoEm: new Date(),
+};
 
 const despesaMock: Despesa = {
   id: '1e7b1c1a-0000-4000-8000-000000000001',
+  usuarioId: mockUser.id,
   descricao: 'Almoço',
   valor: 35.5,
   data: '2026-07-24',
@@ -41,7 +56,7 @@ describe('DespesasController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('delegates create to the service', async () => {
+  it('delegates create to the service with current user id', async () => {
     despesasServiceMock.create.mockResolvedValue(despesaMock);
     const dto = {
       descricao: despesaMock.descricao,
@@ -50,46 +65,47 @@ describe('DespesasController', () => {
       categoria: despesaMock.categoria,
     };
 
-    const result = await controller.create(dto);
+    const result = await controller.create(dto, mockUser);
 
-    expect(despesasServiceMock.create).toHaveBeenCalledWith(dto);
+    expect(despesasServiceMock.create).toHaveBeenCalledWith(dto, mockUser.id);
     expect(result).toEqual(despesaMock);
   });
 
-  it('delegates findAll to the service', async () => {
+  it('delegates findAll to the service with current user id', async () => {
     despesasServiceMock.findAll.mockResolvedValue([despesaMock]);
 
-    const result = await controller.findAll();
+    const result = await controller.findAll(mockUser);
 
+    expect(despesasServiceMock.findAll).toHaveBeenCalledWith(mockUser.id);
     expect(result).toEqual([despesaMock]);
   });
 
-  it('delegates findOne to the service', async () => {
+  it('delegates findOne to the service with current user id', async () => {
     despesasServiceMock.findOne.mockResolvedValue(despesaMock);
 
-    const result = await controller.findOne(despesaMock.id);
+    const result = await controller.findOne(despesaMock.id, mockUser);
 
-    expect(despesasServiceMock.findOne).toHaveBeenCalledWith(despesaMock.id);
+    expect(despesasServiceMock.findOne).toHaveBeenCalledWith(despesaMock.id, mockUser.id);
     expect(result).toEqual(despesaMock);
   });
 
-  it('delegates update to the service', async () => {
+  it('delegates update to the service with current user id', async () => {
     despesasServiceMock.update.mockResolvedValue({
       ...despesaMock,
       valor: 50,
     });
 
-    const result = await controller.update(despesaMock.id, { valor: 50 });
+    const result = await controller.update(despesaMock.id, { valor: 50 }, mockUser);
 
     expect(despesasServiceMock.update).toHaveBeenCalledWith(despesaMock.id, {
       valor: 50,
-    });
+    }, mockUser.id);
     expect(result.valor).toBe(50);
   });
 
-  it('delegates remove to the service', async () => {
-    await controller.remove(despesaMock.id);
+  it('delegates remove to the service with current user id', async () => {
+    await controller.remove(despesaMock.id, mockUser);
 
-    expect(despesasServiceMock.remove).toHaveBeenCalledWith(despesaMock.id);
+    expect(despesasServiceMock.remove).toHaveBeenCalledWith(despesaMock.id, mockUser.id);
   });
 });

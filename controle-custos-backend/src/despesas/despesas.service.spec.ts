@@ -6,8 +6,11 @@ import { DespesasService } from './despesas.service';
 import { Despesa } from './despesa.entity';
 import { CategoriaDespesa } from './categoria-despesa.enum';
 
+const userIdMock = 'user-uuid-1234';
+
 const despesaMock: Despesa = {
   id: '1e7b1c1a-0000-4000-8000-000000000001',
+  usuarioId: userIdMock,
   descricao: 'Almoço',
   valor: 35.5,
   data: '2026-07-24',
@@ -49,7 +52,7 @@ describe('DespesasService', () => {
     expect(service).toBeDefined();
   });
 
-  it('creates a despesa', async () => {
+  it('creates a despesa scoped to user', async () => {
     const dto = {
       descricao: despesaMock.descricao,
       valor: despesaMock.valor,
@@ -59,28 +62,32 @@ describe('DespesasService', () => {
     repository.create!.mockReturnValue(despesaMock);
     repository.save!.mockResolvedValue(despesaMock);
 
-    const result = await service.create(dto);
+    const result = await service.create(dto, userIdMock);
 
-    expect(repository.create).toHaveBeenCalledWith(dto);
+    expect(repository.create).toHaveBeenCalledWith({ ...dto, usuarioId: userIdMock });
     expect(repository.save).toHaveBeenCalledWith(despesaMock);
     expect(result).toEqual(despesaMock);
   });
 
-  it('returns all despesas', async () => {
+  it('returns all despesas for a user', async () => {
     repository.find!.mockResolvedValue([despesaMock]);
 
-    const result = await service.findAll();
+    const result = await service.findAll(userIdMock);
 
+    expect(repository.find).toHaveBeenCalledWith({
+      where: { usuarioId: userIdMock },
+      order: { data: 'DESC' },
+    });
     expect(result).toEqual([despesaMock]);
   });
 
-  it('returns one despesa by id', async () => {
+  it('returns one despesa by id and usuarioId', async () => {
     repository.findOne!.mockResolvedValue(despesaMock);
 
-    const result = await service.findOne(despesaMock.id);
+    const result = await service.findOne(despesaMock.id, userIdMock);
 
     expect(repository.findOne).toHaveBeenCalledWith({
-      where: { id: despesaMock.id },
+      where: { id: despesaMock.id, usuarioId: userIdMock },
     });
     expect(result).toEqual(despesaMock);
   });
@@ -88,7 +95,7 @@ describe('DespesasService', () => {
   it('throws NotFoundException when despesa does not exist', async () => {
     repository.findOne!.mockResolvedValue(null);
 
-    await expect(service.findOne('inexistente')).rejects.toThrow(
+    await expect(service.findOne('inexistente', userIdMock)).rejects.toThrow(
       NotFoundException,
     );
   });
@@ -97,7 +104,7 @@ describe('DespesasService', () => {
     repository.findOne!.mockResolvedValue(despesaMock);
     repository.save!.mockResolvedValue({ ...despesaMock, valor: 50 });
 
-    const result = await service.update(despesaMock.id, { valor: 50 });
+    const result = await service.update(despesaMock.id, { valor: 50 }, userIdMock);
 
     expect(result.valor).toBe(50);
   });
@@ -106,7 +113,7 @@ describe('DespesasService', () => {
     repository.findOne!.mockResolvedValue(despesaMock);
     repository.remove!.mockResolvedValue(despesaMock);
 
-    await service.remove(despesaMock.id);
+    await service.remove(despesaMock.id, userIdMock);
 
     expect(repository.remove).toHaveBeenCalledWith(despesaMock);
   });

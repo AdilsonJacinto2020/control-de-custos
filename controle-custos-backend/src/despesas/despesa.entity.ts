@@ -24,6 +24,9 @@ export class Despesa {
   @Column({ type: 'enum', enum: CategoriaDespesa })
   categoria: CategoriaDespesa;
 
+  @Column({ type: 'uuid', nullable: true })
+  usuarioId: string;
+
   @CreateDateColumn()
   criadoEm: Date;
 

@@ -7,8 +7,20 @@ let server: Express;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:5173', 'http://localhost:3000', 'https://fincontrol.app'];
+
   app.enableCors({
-    origin: '*',
+    origin: (origin, callback) => {
+      // Permite requisições sem origin (como mobile apps, curl ou Postman) ou em origens permitidas
+      if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+        callback(null, true);
+      } else {
+        callback(new Error('Origem não permitida pelo CORS'));
+      }
+    },
+    credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
   app.useGlobalPipes(

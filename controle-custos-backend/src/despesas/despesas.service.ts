@@ -12,17 +12,25 @@ export class DespesasService {
     private readonly despesasRepository: Repository<Despesa>,
   ) {}
 
-  create(createDespesaDto: CreateDespesaDto): Promise<Despesa> {
-    const despesa = this.despesasRepository.create(createDespesaDto);
+  create(createDespesaDto: CreateDespesaDto, usuarioId: string): Promise<Despesa> {
+    const despesa = this.despesasRepository.create({
+      ...createDespesaDto,
+      usuarioId,
+    });
     return this.despesasRepository.save(despesa);
   }
 
-  findAll(): Promise<Despesa[]> {
-    return this.despesasRepository.find({ order: { data: 'DESC' } });
+  findAll(usuarioId: string): Promise<Despesa[]> {
+    return this.despesasRepository.find({
+      where: { usuarioId },
+      order: { data: 'DESC' },
+    });
   }
 
-  async findOne(id: string): Promise<Despesa> {
-    const despesa = await this.despesasRepository.findOne({ where: { id } });
+  async findOne(id: string, usuarioId: string): Promise<Despesa> {
+    const despesa = await this.despesasRepository.findOne({
+      where: { id, usuarioId },
+    });
     if (!despesa) {
       throw new NotFoundException(`Despesa com id "${id}" não encontrada`);
     }
@@ -32,14 +40,15 @@ export class DespesasService {
   async update(
     id: string,
     updateDespesaDto: UpdateDespesaDto,
+    usuarioId: string,
   ): Promise<Despesa> {
-    const despesa = await this.findOne(id);
+    const despesa = await this.findOne(id, usuarioId);
     Object.assign(despesa, updateDespesaDto);
     return this.despesasRepository.save(despesa);
   }
 
-  async remove(id: string): Promise<void> {
-    const despesa = await this.findOne(id);
+  async remove(id: string, usuarioId: string): Promise<void> {
+    const despesa = await this.findOne(id, usuarioId);
     await this.despesasRepository.remove(despesa);
   }
 }
