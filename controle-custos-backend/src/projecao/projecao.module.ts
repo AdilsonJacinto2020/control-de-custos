@@ -4,9 +4,10 @@ import { ProjecaoController } from './projecao.controller';
 import { ContasModule } from '../contas/contas.module';
 import { FontesModule } from '../fontes-rendimento/fontes-rendimento.module';
 import { TransacoesModule } from '../transacoes/transacoes.module';
+import { EventosFuturosModule } from '../eventos-futuros/eventos-futuros.module';
 
 @Module({
-  imports: [ContasModule, FontesModule, TransacoesModule],
+  imports: [ContasModule, FontesModule, TransacoesModule, EventosFuturosModule],
   controllers: [ProjecaoController],
   providers: [ProjecaoFluxoCaixaService],
   exports: [ProjecaoFluxoCaixaService],

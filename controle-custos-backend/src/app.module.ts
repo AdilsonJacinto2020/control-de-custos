@@ -21,6 +21,8 @@ import { FonteDeRendimento } from './fontes-rendimento/fonte-rendimento.entity';
 import { FontesModule } from './fontes-rendimento/fontes-rendimento.module';
 import { MetaDePoupanca } from './metas-poupanca/meta-poupanca.entity';
 import { MetasPoupancaModule } from './metas-poupanca/metas-poupanca.module';
+import { EventoFuturo } from './eventos-futuros/evento-futuro.entity';
+import { EventosFuturosModule } from './eventos-futuros/eventos-futuros.module';
 import { ProjecaoModule } from './projecao/projecao.module';
 
 @Module({
@@ -46,6 +48,7 @@ import { ProjecaoModule } from './projecao/projecao.module';
           Orcamento,
           FonteDeRendimento,
           MetaDePoupanca,
+          EventoFuturo,
         ];
 
         if (databaseUrl) {
@@ -81,6 +84,7 @@ import { ProjecaoModule } from './projecao/projecao.module';
     ImportExtratoModule,
     FontesModule,
     MetasPoupancaModule,
+    EventosFuturosModule,
     ProjecaoModule,
     DespesasModule,
   ],
