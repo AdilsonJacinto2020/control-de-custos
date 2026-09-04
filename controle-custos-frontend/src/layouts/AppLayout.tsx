@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   ChevronRight,
+  Info,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -87,6 +88,12 @@ const navItems: NavItem[] = [
     label: 'Taxas de Câmbio',
     icon: Globe,
     path: '/cambio',
+    categoria: 'colaboracao',
+  },
+  {
+    label: 'Sobre o Sistema',
+    icon: Info,
+    path: '/about',
     categoria: 'colaboracao',
   },
 ];
@@ -206,13 +213,17 @@ export function AppLayout() {
           )}
 
           <div className="sidebar-credits">
-            <span>v2.0 • AngoData</span>
-            <a href="https://profile-adijacinto.vercel.app/"
-              className="!no-underline text-brand font-semibold"
+            <Link to="/about" className="!no-underline hover:text-brand transition-colors text-muted">
+              v2.0 • Sobre o FinControl
+            </Link>
+            <a
+              href="https://profile-adijacinto.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="!no-underline text-brand font-semibold hover:brightness-110"
             >
               Adilson Jacinto
             </a>
-
           </div>
         </div>
       </aside>

@@ -8,6 +8,7 @@ import { RendimentosPage } from './pages/RendimentosPage';
 import { EventosPage } from './pages/EventosPage';
 import { EspacosPage } from './pages/EspacosPage';
 import { CambioPage } from './pages/CambioPage';
+import { AboutPage } from './pages/AboutPage';
 import { transacoesApi, contasApi, categoriasApi } from './api/financas';
 
 const mesAtualStr = () => String(new Date().getMonth() + 1).padStart(2, '0');
@@ -76,6 +77,10 @@ export const router = createBrowserRouter([
       {
         path: 'cambio',
         element: <CambioPage />,
+      },
+      {
+        path: 'about',
+        element: <AboutPage />,
       },
     ],
   },
