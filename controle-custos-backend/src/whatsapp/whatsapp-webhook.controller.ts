@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, Res } from '@nestjs/common';
 import { WhatsappBotService } from './whatsapp-bot.service';
 
 export class WhatsappWebhookPayloadDto {
@@ -18,11 +18,13 @@ export class WhatsappWebhookController {
     @Query('hub.mode') mode: string,
     @Query('hub.verify_token') token: string,
     @Query('hub.challenge') challenge: string,
+    @Res() res: any,
   ) {
-    if (mode === 'subscribe' && token === (process.env.WHATSAPP_VERIFY_TOKEN || 'fincontrol_token')) {
-      return challenge;
+    const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || 'fincontrol_token';
+    if (mode === 'subscribe' && token === verifyToken) {
+      return res.status(HttpStatus.OK).send(challenge);
     }
-    return 'Forbidden';
+    return res.status(HttpStatus.FORBIDDEN).send('Forbidden');
   }
 
   // Recebimento de mensagens do webhook
