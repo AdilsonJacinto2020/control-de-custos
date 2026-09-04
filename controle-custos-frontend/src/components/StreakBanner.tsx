@@ -12,10 +12,13 @@ export const StreakBanner: React.FC = () => {
     <div className="streak-container">
       <div className="streak-main-card">
         <div className="streak-fire-badge">
-          <Flame className="fire-icon animate-pulse" size={32} />
+          <Flame
+            className={`fire-icon ${gamification.streak > 0 ? 'streak-on animate-pulse' : 'streak-off'}`}
+            size={24}
+          />
           <div>
             <div className="streak-number">{gamification.streak} Dias</div>
-            <div className="streak-sub">Sequência Atual (Recorde: {gamification.bestStreak}d)</div>
+            <div className="streak-sub">Sequência</div>
           </div>
         </div>
 

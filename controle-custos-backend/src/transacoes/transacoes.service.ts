@@ -59,9 +59,12 @@ export class TransacoesService {
       .where('transacao.usuarioId = :usuarioId', { usuarioId });
 
     if (mes && ano) {
-      const mesStr = mes.padStart(2, '0');
-      const dataInicio = `${ano}-${mesStr}-01`;
-      const dataFim = `${ano}-${mesStr}-31`;
+      const mesNum = parseInt(mes, 10);
+      const anoNum = parseInt(ano, 10);
+      const mesStr = String(mesNum).padStart(2, '0');
+      const dataInicio = `${anoNum}-${mesStr}-01`;
+      const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+      const dataFim = `${anoNum}-${mesStr}-${String(ultimoDia).padStart(2, '0')}`;
       query.andWhere('transacao.data >= :dataInicio AND transacao.data <= :dataFim', {
         dataInicio,
         dataFim,

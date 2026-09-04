@@ -23,7 +23,15 @@ import { MetaDePoupanca } from './metas-poupanca/meta-poupanca.entity';
 import { MetasPoupancaModule } from './metas-poupanca/metas-poupanca.module';
 import { EventoFuturo } from './eventos-futuros/evento-futuro.entity';
 import { EventosFuturosModule } from './eventos-futuros/eventos-futuros.module';
+import { ConversaWhatsapp } from './whatsapp/entities/conversa-whatsapp.entity';
+import { MensagemProcessada } from './whatsapp/entities/mensagem-processada.entity';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { ProjecaoModule } from './projecao/projecao.module';
+import { EspacoPartilhado } from './espacos-partilhados/entities/espaco-partilhado.entity';
+import { MembroEspacoPartilhado } from './espacos-partilhados/entities/membro-espaco.entity';
+import { EspacosPartilhadosModule } from './espacos-partilhados/espacos-partilhados.module';
+import { TaxaCambioPersonalizada } from './cambio/entities/taxa-cambio.entity';
+import { CambioModule } from './cambio/cambio.module';
 
 @Module({
   imports: [
@@ -49,6 +57,9 @@ import { ProjecaoModule } from './projecao/projecao.module';
           FonteDeRendimento,
           MetaDePoupanca,
           EventoFuturo,
+          EspacoPartilhado,
+          MembroEspacoPartilhado,
+          TaxaCambioPersonalizada,
         ];
 
         if (databaseUrl) {
@@ -86,9 +97,12 @@ import { ProjecaoModule } from './projecao/projecao.module';
     MetasPoupancaModule,
     EventosFuturosModule,
     ProjecaoModule,
+    EspacosPartilhadosModule,
+    CambioModule,
     DespesasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+

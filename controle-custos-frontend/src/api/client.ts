@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 export async function apiClient<T>(path: string, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem('fincontrol_token');

@@ -22,7 +22,7 @@ export class MensagemProcessada {
   @Column({
     type: 'enum',
     enum: TipoConteudoMensagem,
-    default: TipoConteudoMensagem,
+    default: TipoConteudoMensagem.TEXTO,
   })
   tipoConteudo: TipoConteudoMensagem;
 

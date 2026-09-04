@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { UserProfile, GamificationStats } from '../types/gamification';
 import { authApi } from '../api/auth';
+import { formatUserName } from '../utils/formatters';
 import confetti from 'canvas-confetti';
 
 interface AuthContextType {
@@ -18,7 +19,16 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('fincontrol_user');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.name) {
+        parsed.name = formatUserName(parsed.name);
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
   });
 
   useEffect(() => {
@@ -72,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const loggedUser: UserProfile = {
         id: response.user.id,
-        name: response.user.nome || 'Usuário Google',
+        name: formatUserName(response.user.nome || 'Usuário Google'),
         email: response.user.email,
         picture: response.user.avatarUrl,
         streak: (user?.streak || 0) + 1,
@@ -99,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const guestUser: UserProfile = {
         id: response.user.id,
-        name: response.user.nome || 'Convidado Demo',
+        name: formatUserName(response.user.nome || 'Convidado Demo'),
         email: response.user.email,
         streak: 1,
         bestStreak: 1,

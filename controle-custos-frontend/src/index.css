@@ -1,81 +1,76 @@
 :root {
-  /* Design Tokens - FinControl Pro Glassmorphism */
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Design Tokens - FinControl Industrial / Technical Slate */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
-  /* Modo Claro Padrão */
-  --bg-gradient: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
-                 radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
-                 #f8fafc;
-  --surface-bg: rgba(255, 255, 255, 0.85);
-  --surface-card: rgba(255, 255, 255, 0.75);
-  --surface-hover: rgba(241, 245, 249, 0.8);
-  --border: rgba(226, 232, 240, 0.8);
-  --border-focus: #3b82f6;
+  /* Modo Claro - Fundo clean industrial */
+  --bg-main: #F4F4F6;
+  --bg-subtle: #ECECEE;
+  --bg-card: #FCFCFD;
+  --bg-hover: #E4E4E7;
+  --border-subtle: #E2E2E6;
+  --border-medium: #D1D1D6;
+  --border-strong: #A1A1AA;
+  
+  --text-primary: #18181B;
+  --text-secondary: #52525B;
+  --text-muted: #71717A;
 
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
+  --accent-brand: #FF4D2E; /* Laranja acento técnico do seu portfólio */
+  --tech-cyan: #0284C7;
+  --tech-green: #059669;
+  --tech-amber: #D97706;
+  --tech-red: #DC2626;
 
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-subtle: rgba(37, 99, 235, 0.1);
+  --primary: #18181B;
+  --primary-hover: #27272A;
+  --primary-subtle: rgba(24, 24, 27, 0.06);
 
-  --accent-streak: #f59e0b;
-  --accent-streak-subtle: rgba(245, 158, 11, 0.12);
-  --accent-success: #10b981;
-  --accent-success-subtle: rgba(16, 185, 129, 0.12);
-  --accent-danger: #ef4444;
-  --accent-danger-subtle: rgba(239, 68, 68, 0.12);
-
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
-  --blur-card: blur(16px);
+  --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --radius-none: 0px;
 }
 
 [data-theme='dark'] {
-  --bg-gradient: radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.12) 0px, transparent 50%),
-                 radial-gradient(at 100% 100%, rgba(245, 158, 11, 0.08) 0px, transparent 50%),
-                 #0b0f19;
-  --surface-bg: rgba(17, 24, 39, 0.85);
-  --surface-card: rgba(17, 24, 39, 0.7);
-  --surface-hover: rgba(31, 41, 55, 0.8);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-focus: #60a5fa;
+  /* Modo Escuro Profundo e Sólido (exato profile-adijacinto) */
+  --bg-main: #0B0D11;
+  --bg-subtle: #12151B;
+  --bg-card: #171B23;
+  --bg-hover: #1E232E;
+  --border-subtle: #232936;
+  --border-medium: #313A4D;
+  --border-strong: #4B5872;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #F4F5F7;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
 
-  --primary: #3b82f6;
-  --primary-hover: #60a5fa;
-  --primary-subtle: rgba(59, 130, 246, 0.18);
+  --accent-brand: #FF4D2E;
+  --tech-cyan: #38BDF8;
+  --tech-green: #10B981;
+  --tech-amber: #F59E0B;
+  --tech-red: #F87171;
 
-  --accent-streak: #fbbf24;
-  --accent-streak-subtle: rgba(251, 191, 36, 0.16);
-  --accent-success: #34d399;
-  --accent-success-subtle: rgba(52, 211, 153, 0.16);
-  --accent-danger: #f87171;
-  --accent-danger-subtle: rgba(248, 113, 113, 0.16);
+  --primary: #F4F5F7;
+  --primary-hover: #E2E8F0;
+  --primary-subtle: rgba(244, 245, 247, 0.08);
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-  --blur-card: blur(20px);
+  --shadow-subtle: 0 0 0 1px #232936, 0 4px 12px -2px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 0 0 1px #232936, 0 8px 24px -4px rgba(0, 0, 0, 0.6);
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
+  border-radius: 0; /* Contornos retos estruturados */
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 body {
   font-family: var(--font-sans);
-  background: var(--bg-gradient);
-  background-attachment: fixed;
+  background-color: var(--bg-main);
   color: var(--text-primary);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -91,8 +86,26 @@ body {
 button {
   cursor: pointer;
   font-family: inherit;
+  border-radius: 0;
 }
 
-input, select, button {
+input, select, button, textarea {
   outline: none;
+  font-family: inherit;
 }
+
+/* Scrollbars Industriais Finas */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-subtle);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+

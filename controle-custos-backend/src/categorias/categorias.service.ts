@@ -34,7 +34,7 @@ export class CategoriasService {
             icone: cat.icone,
             cor: cat.cor,
             regrasDeCategorizacao: cat.regrasDeCategorizacao,
-            usuarioId: null,
+            usuarioId: undefined,
             ativa: true,
           }),
         );

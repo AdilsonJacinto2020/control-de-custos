@@ -30,8 +30,10 @@ async function bootstrap() {
     }),
   );
 
-  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    await app.listen(process.env.PORT ?? 3000);
+  if (!process.env.VERCEL) {
+    const port = process.env.PORT || 3000;
+    await app.listen(port);
+    console.log(`Servidor rodando em http://localhost:${port}`);
   } else {
     await app.init();
     const instance = app.getHttpAdapter().getInstance();
