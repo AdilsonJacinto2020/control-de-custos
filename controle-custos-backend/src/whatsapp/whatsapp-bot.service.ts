@@ -64,6 +64,10 @@ export class WhatsappBotService {
     const resposta = await this.handleState(conversa, user.id, texto, msgLog);
 
     await this.mensagemRepository.save(msgLog);
+
+    // Envia resposta ativa de volta para o utilizador via WhatsApp Cloud API
+    await this.sendMetaWhatsappMessage(telefone, resposta);
+
     return resposta;
   }
 
@@ -117,7 +121,7 @@ export class WhatsappBotService {
       const mes = String(new Date().getMonth() + 1).padStart(2, '0');
       const ano = String(new Date().getFullYear());
       try {
-        const dashboard = await this.transacoesService.getDashboard(usuarioId, mes, ano);
+        const dashboard = await this.transacoesService.getDashboardSummary(usuarioId, mes, ano);
         const formatKz = (v: number) =>
           new Intl.NumberFormat('pt-AO', { minimumFractionDigits: 0 }).format(v) + ' Kz';
 
@@ -215,9 +219,6 @@ export class WhatsappBotService {
     const tipoTexto = transacao.tipo === TipoTransacao.RECEITA ? 'Receita recebida' : 'Gasto registado';
 
     const respostaFinal = `✅ *${tipoTexto}*: ${transacao.valor} ${transacao.moeda}${catTexto}.\n_(Responda "errado" se quiser desfazer)_`;
-
-    // Enviar mensagem ativa via Meta Cloud API se configurado
-    await this.sendMetaWhatsappMessage(conversa.telefoneWhatsapp, respostaFinal);
 
     return respostaFinal;
   }
