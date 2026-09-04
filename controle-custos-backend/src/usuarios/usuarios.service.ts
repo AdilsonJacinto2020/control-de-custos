@@ -57,4 +57,13 @@ export class UsuariosService {
 
     return user;
   }
+
+  async updateTelefone(id: string, telefoneWhatsapp: string): Promise<Usuario> {
+    const user = await this.usuarioRepository.findOne({ where: { id } });
+    if (user) {
+      user.telefoneWhatsapp = telefoneWhatsapp;
+      return this.usuarioRepository.save(user);
+    }
+    return user as any;
+  }
 }

@@ -38,7 +38,7 @@ export class WhatsappBotService {
         nome: `Usuário ${telefone.slice(-4)}`,
       });
       user.telefoneWhatsapp = telefone;
-      // Atualiza usuário com telefone
+      await this.usuariosService.updateTelefone(user.id, telefone);
     }
 
     let conversa = await this.conversaRepository.findOne({
