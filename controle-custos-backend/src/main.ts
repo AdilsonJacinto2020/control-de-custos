@@ -1,12 +1,13 @@
 import { NestFactory } from '@nestjs/core';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { Express } from 'express';
+import express, { Express } from 'express';
 
-let server: Express;
+const server: Express = express();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
   const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',')
     : ['http://localhost:5173', 'http://localhost:3000', 'https://fincontrol.app'];
@@ -36,9 +37,18 @@ async function bootstrap() {
     console.log(`Servidor rodando em http://localhost:${port}`);
   } else {
     await app.init();
-    const instance = app.getHttpAdapter().getInstance();
-    return instance;
   }
+}
+
+let isInitialized = false;
+
+// Handler para Vercel Serverless Function
+export default async function handler(req: any, res: any) {
+  if (!isInitialized) {
+    await bootstrap();
+    isInitialized = true;
+  }
+  return server(req, res);
 }
 
 // Para execução local
@@ -46,10 +56,3 @@ if (!process.env.VERCEL) {
   bootstrap();
 }
 
-// Handler para Vercel Serverless Function
-export default async function handler(req: any, res: any) {
-  if (!server) {
-    server = (await bootstrap()) as Express;
-  }
-  return server(req, res);
-}
