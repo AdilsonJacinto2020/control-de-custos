@@ -7,6 +7,23 @@ import express, { Express } from 'express';
 const server: Express = express();
 let isReady = false;
 
+// Handler de fallback direto para verificação rápida do webhook da Meta
+server.get('/webhooks/whatsapp', (req, res, next) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || 'fincontrol_token';
+
+  if (mode === 'subscribe' && token === verifyToken) {
+    return res.status(200).send(challenge);
+  }
+  next();
+});
+
+server.get('/api/health', (req, res) => {
+  return res.status(200).json({ status: 'ok', serverTime: new Date().toISOString() });
+});
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
   const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -35,6 +52,16 @@ async function bootstrap() {
 }
 
 export default async function handler(req: any, res: any) {
+  // Se for a verificação do webhook da Meta, atende imediatamente sem esperar o NestJS carregar banco
+  const mode = req.query?.['hub.mode'];
+  const token = req.query?.['hub.verify_token'];
+  const challenge = req.query?.['hub.challenge'];
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || 'fincontrol_token';
+
+  if (mode === 'subscribe' && token === verifyToken && challenge) {
+    return res.status(200).send(challenge);
+  }
+
   try {
     if (!isReady) {
       await bootstrap();
@@ -43,9 +70,8 @@ export default async function handler(req: any, res: any) {
     return server(req, res);
   } catch (err: any) {
     return res.status(500).json({
-      error: 'Vercel Function Initialization Error',
+      error: 'Vercel Initialization Error',
       message: err?.message,
-      stack: err?.stack,
     });
   }
 }

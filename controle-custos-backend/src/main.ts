@@ -44,6 +44,21 @@ let isInitialized = false;
 
 // Handler para Vercel Serverless Function
 export default async function handler(req: any, res: any) {
+  // Verificação instantânea do webhook da Meta para evitar timeout ou falha de boot da DB
+  const mode = req.query?.['hub.mode'];
+  const token = req.query?.['hub.verify_token'];
+  const challenge = req.query?.['hub.challenge'];
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || 'fincontrol_token';
+
+  if (mode === 'subscribe' && token === verifyToken && challenge) {
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(200).send(challenge);
+  }
+
+  if (req.url === '/api/health' || req.url === '/health') {
+    return res.status(200).json({ status: 'ok', serverTime: new Date().toISOString() });
+  }
+
   try {
     if (!isInitialized) {
       await bootstrap();
