@@ -20,7 +20,6 @@ import {
   LogOut,
   MoreHorizontal,
   X,
-  Compass,
   Zap,
   Flame,
   ShieldCheck,
@@ -30,6 +29,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { formatUserName } from '../utils/formatters';
+import { FinControlLogo } from '../components/FinControlLogo';
 import { GoogleLogin } from '@react-oauth/google';
 import './AppLayout.css';
 
@@ -138,13 +138,7 @@ export function AppLayout() {
       <aside className="layout-sidebar">
         <div className="sidebar-top">
           <div className="sidebar-brand-box">
-            <div className="brand-logo-icon">
-              <Sparkles size={18} />
-            </div>
-            <div>
-              <h1 className="brand-title">FinControl Engine</h1>
-              <span className="brand-badge">SISTEMA FINANCEIRO</span>
-            </div>
+            <FinControlLogo height={38} />
           </div>
 
           <nav className="sidebar-nav-container">
@@ -368,10 +362,7 @@ export function AppLayout() {
 
               {/* Cabeçalho da Gaveta */}
               <div className="mobile-drawer-header">
-                <div className="flex items-center gap-2">
-                  <Compass size={18} className="text-brand" />
-                  <h2 className="drawer-title">Menu Completo</h2>
-                </div>
+                <FinControlLogo height={28} />
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="drawer-close-btn"

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConversaWhatsapp, EstadoConversa } from './entities/conversa-whatsapp.entity';
@@ -24,6 +25,7 @@ export class WhatsappBotService {
     private readonly categoriasService: CategoriasService,
     private readonly contasService: ContasService,
     private readonly transacoesService: TransacoesService,
+    private readonly configService: ConfigService,
   ) {}
 
   async processIncomingMessage(telefone: string, texto: string): Promise<string> {
@@ -128,7 +130,12 @@ export class WhatsappBotService {
       confianca: parsed.confianca,
     };
 
-    // Caso de categoria ambígua / não identificada
+    // Se for receita e não tiver categoria de despesa, salva diretamente
+    if (parsed.tipo === TipoTransacao.RECEITA && !parsed.categoriaId) {
+      return this.finalizarTransacao(conversa, usuarioId, msgLog, contaPrincipal.id, 'Receita');
+    }
+
+    // Caso de despesa com categoria ambígua / não identificada
     if (!parsed.categoriaId && categorias.length > 0) {
       const topCategorias = categorias.slice(0, 4);
       conversa.dadosRascunho.opcoesCategoria = topCategorias.map((c) => ({
@@ -141,7 +148,7 @@ export class WhatsappBotService {
       const lista = topCategorias
         .map((c, i) => `${i + 1}) ${c.nome}`)
         .join('\n');
-      return `Em qual categoria fica o valor de ${parsed.valor} ${parsed.moeda}?\n${lista}\n\nResponda com o número correspondente.`;
+      return `Em qual categoria fica o gasto de ${parsed.valor} ${parsed.moeda}?\n${lista}\n\nResponda com o número correspondente.`;
     }
 
     return this.finalizarTransacao(conversa, usuarioId, msgLog, contaPrincipal.id, parsed.categoriaNome);
@@ -187,6 +194,56 @@ export class WhatsappBotService {
     const catTexto = categoriaNomeOverride ? ` em *${categoriaNomeOverride}*` : '';
     const tipoTexto = transacao.tipo === TipoTransacao.RECEITA ? 'Receita recebida' : 'Gasto registado';
 
-    return `✅ *${tipoTexto}*: ${transacao.valor} ${transacao.moeda}${catTexto}.\n_(Responda "errado" se quiser desfazer)_`;
+    const respostaFinal = `✅ *${tipoTexto}*: ${transacao.valor} ${transacao.moeda}${catTexto}.\n_(Responda "errado" se quiser desfazer)_`;
+
+    // Enviar mensagem ativa via Meta Cloud API se configurado
+    await this.sendMetaWhatsappMessage(conversa.telefoneWhatsapp, respostaFinal);
+
+    return respostaFinal;
+  }
+
+  /**
+   * Envia uma mensagem de texto ativa de volta para o utilizador via Meta WhatsApp Cloud API
+   */
+  async sendMetaWhatsappMessage(toPhone: string, messageText: string): Promise<boolean> {
+    const phoneNumberId = this.configService.get<string>('WHATSAPP_PHONE_NUMBER_ID');
+    const accessToken = this.configService.get<string>('WHATSAPP_ACCESS_TOKEN');
+
+    if (!phoneNumberId || !accessToken) {
+      this.logger.debug('Credenciais da Meta Cloud API não encontradas; pulando envio de mensagem ativa.');
+      return false;
+    }
+
+    try {
+      // Limpa caracteres especiais do telefone para formato internacional limpo
+      const cleanedPhone = toPhone.replace(/[^0-9]/g, '');
+
+      const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: cleanedPhone,
+          type: 'text',
+          text: { body: messageText },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        this.logger.warn(`Erro ao enviar mensagem via WhatsApp Cloud API: ${JSON.stringify(errorData)}`);
+        return false;
+      }
+
+      this.logger.log(`Mensagem de resposta enviada com sucesso para ${cleanedPhone}`);
+      return true;
+    } catch (err: any) {
+      this.logger.error(`Exceção ao enviar resposta WhatsApp Cloud API: ${err?.message}`);
+      return false;
+    }
   }
 }

@@ -58,9 +58,15 @@ export class WhatsappParserService {
     let categoriaNome: string | undefined;
     let confianca = valor ? 0.7 : 0.2;
 
+    const containsWord = (text: string, word: string) => {
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(^|\\s|[^a-zA-Z0-9])${escaped}($|\\s|[^a-zA-Z0-9])`, 'i');
+      return regex.test(text);
+    };
+
     for (const cat of categorias) {
       // Comparar nome direto da categoria
-      if (rawNormalized.includes(normalize(cat.nome))) {
+      if (containsWord(rawNormalized, normalize(cat.nome))) {
         categoriaId = cat.id;
         categoriaNome = cat.nome;
         confianca = 0.95;
@@ -70,7 +76,7 @@ export class WhatsappParserService {
       // Comparar regras/palavras-chave da categoria
       if (cat.regrasDeCategorizacao && Array.isArray(cat.regrasDeCategorizacao)) {
         const foundKeyword = cat.regrasDeCategorizacao.some((kw) =>
-          rawNormalized.includes(normalize(kw)),
+          containsWord(rawNormalized, normalize(kw)),
         );
         if (foundKeyword) {
           categoriaId = cat.id;
