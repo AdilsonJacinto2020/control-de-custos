@@ -44,11 +44,20 @@ let isInitialized = false;
 
 // Handler para Vercel Serverless Function
 export default async function handler(req: any, res: any) {
-  if (!isInitialized) {
-    await bootstrap();
-    isInitialized = true;
+  try {
+    if (!isInitialized) {
+      await bootstrap();
+      isInitialized = true;
+    }
+    return server(req, res);
+  } catch (error: any) {
+    console.error('Error during Vercel function invocation:', error);
+    return res.status(500).json({
+      error: 'Error initializing NestJS application',
+      message: error?.message || 'Unknown error',
+      stack: error?.stack,
+    });
   }
-  return server(req, res);
 }
 
 // Para execução local
