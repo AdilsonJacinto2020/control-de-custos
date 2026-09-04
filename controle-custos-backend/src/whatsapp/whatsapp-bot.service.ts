@@ -107,6 +107,26 @@ export class WhatsappBotService {
       }
     }
 
+    // Comando Saudação / Ajuda
+    if (['ola', 'olá', 'oi', 'menu', 'ajuda', 'help', 'iniciar', 'comecar', 'começar'].includes(raw)) {
+      return `👋 *Olá! Sou o seu assistente FinControl.*\n\nComo posso ajudar hoje?\n\n🔹 *Registar despesa:* "Almoço 3500 kz" ou "Taxi 2000 aoa"\n🔹 *Registar receita:* "Salário 350000 kz"\n🔹 *Consultar saldo:* "Saldo" ou "Consultar saldo"\n🔹 *Desfazer último:* "Errado" ou "Desfazer"`;
+    }
+
+    // Comando Consultar Saldo / Resumo
+    if (raw.includes('saldo') || raw.includes('resumo') || raw.includes('extrato')) {
+      const mes = String(new Date().getMonth() + 1).padStart(2, '0');
+      const ano = String(new Date().getFullYear());
+      try {
+        const dashboard = await this.transacoesService.getDashboard(usuarioId, mes, ano);
+        const formatKz = (v: number) =>
+          new Intl.NumberFormat('pt-AO', { minimumFractionDigits: 0 }).format(v) + ' Kz';
+
+        return `📊 *Resumo Financeiro FinControl (${mes}/${ano})*\n\n🟢 *Receitas:* ${formatKz(dashboard.totalReceitas || 0)}\n🔴 *Despesas:* ${formatKz(dashboard.totalDespesas || 0)}\n💰 *Saldo Líquido:* ${formatKz(dashboard.saldoMes || 0)}\n\n_Para registar novo gasto, envie: "Descrição Valor kz"_`;
+      } catch {
+        return '📊 *FinControl:* As suas contas estão sincronizadas. Para registar um gasto envie ex: "Almoço 2500 kz".';
+      }
+    }
+
     // Fluxo Normal de Parsing de Texto
     const categorias = await this.categoriasService.findAll(usuarioId);
     const parsed = this.parserService.parseTexto(texto, categorias);
