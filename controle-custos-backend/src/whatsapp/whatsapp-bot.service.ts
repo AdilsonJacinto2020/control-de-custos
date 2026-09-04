@@ -99,8 +99,8 @@ export class WhatsappBotService {
         conversa.dadosRascunho.categoriaId = catEscolhida.id;
         conversa.dadosRascunho.confianca = 1.0;
 
-        // Persiste a transação
-        const resposta = await this.finalizarTransacao(conversa, usuarioId, msgLog);
+        // Persiste a transação com nome da categoria
+        const resposta = await this.finalizarTransacao(conversa, usuarioId, msgLog, undefined, catEscolhida.nome);
         return resposta;
       }
     }

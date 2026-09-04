@@ -45,14 +45,22 @@ export class WhatsappParserService {
     const isReceita = triggerReceita.some((word) => raw.includes(word));
     const tipo = isReceita ? TipoTransacao.RECEITA : TipoTransacao.DESPESA;
 
-    // 3. Categoria Matching
+    // 3. Categoria Matching (com normalização de acentos: almoço -> almoco)
+    const normalize = (str: string) =>
+      str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    const rawNormalized = normalize(raw);
+
     let categoriaId: string | undefined;
     let categoriaNome: string | undefined;
     let confianca = valor ? 0.7 : 0.2;
 
     for (const cat of categorias) {
       // Comparar nome direto da categoria
-      if (raw.includes(cat.nome.toLowerCase())) {
+      if (rawNormalized.includes(normalize(cat.nome))) {
         categoriaId = cat.id;
         categoriaNome = cat.nome;
         confianca = 0.95;
@@ -62,7 +70,7 @@ export class WhatsappParserService {
       // Comparar regras/palavras-chave da categoria
       if (cat.regrasDeCategorizacao && Array.isArray(cat.regrasDeCategorizacao)) {
         const foundKeyword = cat.regrasDeCategorizacao.some((kw) =>
-          raw.includes(kw.toLowerCase()),
+          rawNormalized.includes(normalize(kw)),
         );
         if (foundKeyword) {
           categoriaId = cat.id;
