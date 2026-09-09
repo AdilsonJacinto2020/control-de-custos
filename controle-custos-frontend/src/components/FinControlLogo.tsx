@@ -3,12 +3,17 @@ import React from 'react';
 interface FinControlLogoProps {
   className?: string;
   height?: number;
+  showSubtitle?: boolean;
 }
 
-export const FinControlLogo: React.FC<FinControlLogoProps> = ({ className, height = 36 }) => {
+export const FinControlLogo: React.FC<FinControlLogoProps> = ({
+  className,
+  height = 36,
+  showSubtitle = true,
+}) => {
   return (
-    <div className={`flex items-center gap-2.5 ${className || ''}`}>
-      {/* Símbolo do Balão com Gráfico Ascendente */}
+    <div className={`flex items-center gap-2.5 select-none ${className || ''}`}>
+      {/* Ícone quadrado com cantos discretos e cauda de chat */}
       <svg
         height={height}
         viewBox="0 0 160 160"
@@ -16,24 +21,23 @@ export const FinControlLogo: React.FC<FinControlLogoProps> = ({ className, heigh
         xmlns="http://www.w3.org/2000/svg"
         className="flex-shrink-0"
       >
-        <polygon points="18,138 18,160 48,138" fill="var(--text-primary)" />
-        <rect x="0" y="18" width="120" height="120" rx="26" fill="var(--text-primary)" />
-        <rect x="28" y="96" width="14" height="32" rx="3" fill="var(--bg-card)" />
-        <rect x="52" y="76" width="14" height="52" rx="3" fill="var(--bg-card)" />
-        <rect x="76" y="50" width="14" height="78" rx="3" fill="var(--bg-card)" />
-        <circle cx="111" cy="32" r="15" fill="var(--accent-brand)" />
+        <polygon points="20,120 20,140 44,120" fill="var(--accent-brand, #FF4D2E)" />
+        <rect x="0" y="0" width="120" height="120" rx="8" fill="var(--accent-brand, #FF4D2E)" />
+        <rect x="28" y="78" width="12" height="32" fill="#FFFFFF" rx="1" />
+        <rect x="52" y="58" width="12" height="52" fill="#FFFFFF" rx="1" />
+        <rect x="76" y="32" width="12" height="78" fill="#FFFFFF" rx="1" />
       </svg>
 
-      {/* Tipografia da Marca com Badge AO */}
-      <div className="flex flex-col">
+      {/* Tipografia Industrial / Slate: FinControl + Badge AO */}
+      <div className="flex flex-col justify-center">
         <div className="flex items-center gap-1.5">
           <span
             style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: `${Math.round(height * 0.46)}px`,
-              fontWeight: 700,
+              fontFamily: 'var(--font-display, "Space Grotesk", sans-serif)',
+              fontSize: `${Math.round(height * 0.52)}px`,
+              fontWeight: 600,
               letterSpacing: '-0.02em',
-              color: 'var(--text-primary)',
+              color: 'var(--text-primary, #0f172a)',
               lineHeight: 1,
             }}
           >
@@ -41,31 +45,34 @@ export const FinControlLogo: React.FC<FinControlLogoProps> = ({ className, heigh
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-mono)',
+              fontFamily: 'var(--font-mono, monospace)',
               fontSize: `${Math.max(9, Math.round(height * 0.28))}px`,
-              fontWeight: 700,
-              backgroundColor: 'var(--accent-brand)',
-              color: '#ffffff',
-              padding: '1px 6px',
-              borderRadius: '10px',
-              lineHeight: 1.2,
+              fontWeight: 600,
+              border: '1.5px solid var(--accent-brand, #FF4D2E)',
+              color: 'var(--accent-brand, #FF4D2E)',
+              backgroundColor: 'transparent',
+              padding: '1px 5px',
+              borderRadius: '4px',
+              lineHeight: 1.1,
             }}
           >
             AO
           </span>
         </div>
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: `${Math.max(8, Math.round(height * 0.23))}px`,
-            color: 'var(--text-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            marginTop: '2px',
-          }}
-        >
-          Controlo Financeiro
-        </span>
+        {showSubtitle && (
+          <span
+            style={{
+              fontFamily: 'var(--font-sans, "Inter", sans-serif)',
+              fontSize: `${Math.max(8, Math.round(height * 0.23))}px`,
+              color: 'var(--text-muted, #64748b)',
+              letterSpacing: '0.01em',
+              marginTop: '2px',
+              lineHeight: 1,
+            }}
+          >
+            Controlo financeiro para Angola
+          </span>
+        )}
       </div>
     </div>
   );
