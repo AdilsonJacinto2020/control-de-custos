@@ -114,6 +114,26 @@ export default async function handler(req: any, res: any) {
     });
   }
 
+  if (req.url === '/api/test-db' || req.url === '/test-db') {
+    const { Client } = await import('pg');
+    const client = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    });
+    try {
+      await client.connect();
+      const result = await client.query('SELECT NOW()');
+      await client.end();
+      return res.status(200).json({ status: 'db_connected', now: result.rows[0] });
+    } catch (dbErr: any) {
+      return res.status(500).json({
+        status: 'db_connection_failed',
+        error: dbErr?.message,
+        code: dbErr?.code,
+      });
+    }
+  }
+
   try {
     if (!isInitialized) {
       await bootstrap();
