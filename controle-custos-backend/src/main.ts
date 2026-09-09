@@ -122,6 +122,10 @@ export default async function handler(req: any, res: any) {
     return server(req, res);
   } catch (error: any) {
     console.error('Error during Vercel function invocation:', error);
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
     return res.status(500).json({
       error: 'Error initializing NestJS application',
       message: error?.message || 'Unknown error',
