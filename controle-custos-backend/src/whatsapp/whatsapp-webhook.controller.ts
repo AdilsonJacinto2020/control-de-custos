@@ -36,28 +36,39 @@ export class WhatsappWebhookController {
     let from: string | undefined = body.from;
     let text: string | undefined = body.text;
 
-    try {
-      const entry = body?.entry?.[0];
-      const change = entry?.changes?.[0];
-      const value = change?.value;
-      const message = value?.messages?.[0];
-
-      if (message) {
-        from = message.from;
-        if (message.type === 'text' && message.text?.body) {
-          text = message.text.body;
-        } else if (message.type === 'button' && message.button?.text) {
-          text = message.button.text;
-        } else if (message.type === 'interactive') {
-          text =
-            message.interactive?.button_reply?.title ||
-            message.interactive?.list_reply?.title ||
-            message.interactive?.button_reply?.id;
-        }
+    // 1. Suporte para Evolution API v1 e v2 (Webhook event: MESSAGES_UPSERT ou SEND_MESSAGE)
+    if (body?.event === 'messages.upsert' || body?.event === 'MESSAGES_UPSERT' || body?.data?.message) {
+      const msgData = body?.data;
+      const key = msgData?.key;
+      // Ignora mensagens enviadas pelo próprio bot
+      if (key?.fromMe) {
+        return { status: 'ignored_own_message' };
       }
-    } catch {
-      // payload simples de fallback
+
+      from = key?.remoteJid?.replace('@s.whatsapp.net', '') || msgData?.sender;
+      text =
+        msgData?.message?.conversation ||
+        msgData?.message?.extendedTextMessage?.text ||
+        msgData?.message?.buttonsResponseMessage?.selectedButtonId ||
+        msgData?.message?.listResponseMessage?.title;
     }
+
+    // 2. Suporte para Cloud API da Meta (WhatsApp Business Cloud API)
+    if (!text && body?.entry && body?.entry[0]?.changes && body?.entry[0]?.changes[0]?.value?.messages) {
+      const msg = body.entry[0].changes[0].value.messages[0];
+      from = msg.from;
+      if (msg.type === 'text' && msg.text?.body) {
+        text = msg.text.body;
+      } else if (msg.type === 'button' && msg.button?.text) {
+        text = msg.button.text;
+      } else if (msg.type === 'interactive') {
+        text =
+          msg.interactive?.button_reply?.title ||
+          msg.interactive?.list_reply?.title ||
+          msg.interactive?.button_reply?.id;
+      }
+    }
+
 
     if (!from || !text) {
       return { status: 'ignored_or_no_text' };

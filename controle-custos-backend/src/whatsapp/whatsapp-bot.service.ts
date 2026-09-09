@@ -251,21 +251,55 @@ export class WhatsappBotService {
   }
 
   /**
-   * Envia uma mensagem de texto ativa de volta para o utilizador via Meta WhatsApp Cloud API
+   * Envia uma mensagem de texto ativa de volta para o utilizador via Evolution API ou Meta WhatsApp Cloud API
    */
   async sendMetaWhatsappMessage(toPhone: string, messageText: string): Promise<boolean> {
+    const cleanedPhone = toPhone.replace(/[^0-9]/g, '');
+
+    // 1. Prioridade: Evolution API (se configurada EVOLUTION_API_URL)
+    const evolutionUrl = this.configService.get<string>('EVOLUTION_API_URL');
+    const evolutionApiKey = this.configService.get<string>('EVOLUTION_API_KEY');
+    const evolutionInstance = this.configService.get<string>('EVOLUTION_INSTANCE_NAME') || 'fincontrol';
+
+    if (evolutionUrl && evolutionApiKey) {
+      try {
+        const cleanUrl = evolutionUrl.replace(/\/+$/, '');
+        const endpoint = `${cleanUrl}/message/sendText/${evolutionInstance}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'apikey': evolutionApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            number: cleanedPhone,
+            text: messageText,
+            linkPreview: false,
+          }),
+        });
+
+        if (res.ok) {
+          this.logger.log(`Resposta enviada via Evolution API com sucesso para ${cleanedPhone}`);
+          return true;
+        } else {
+          const errData = await res.json().catch(() => null);
+          this.logger.warn(`Erro na Evolution API: ${JSON.stringify(errData)}`);
+        }
+      } catch (err: any) {
+        this.logger.error(`Exceção Evolution API: ${err?.message}`);
+      }
+    }
+
+    // 2. Fallback: Meta WhatsApp Cloud API
     const phoneNumberId = this.configService.get<string>('WHATSAPP_PHONE_NUMBER_ID');
     const accessToken = this.configService.get<string>('WHATSAPP_ACCESS_TOKEN');
 
     if (!phoneNumberId || !accessToken) {
-      this.logger.debug('Credenciais da Meta Cloud API não encontradas; pulando envio de mensagem ativa.');
+      this.logger.debug('Credenciais de envio de mensagem ativa não encontradas.');
       return false;
     }
 
     try {
-      // Limpa caracteres especiais do telefone para formato internacional limpo
-      const cleanedPhone = toPhone.replace(/[^0-9]/g, '');
-
       const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
       const response = await fetch(url, {
         method: 'POST',
@@ -295,3 +329,4 @@ export class WhatsappBotService {
     }
   }
 }
+
