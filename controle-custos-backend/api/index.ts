@@ -20,8 +20,18 @@ server.get('/webhooks/whatsapp', (req, res, next) => {
   next();
 });
 
-server.get('/api/health', (req, res) => {
+server.get(['/api/health', '/health'], (req, res) => {
   return res.status(200).json({ status: 'ok', serverTime: new Date().toISOString() });
+});
+
+server.get(['/api/debug-env', '/debug-env'], (req, res) => {
+  return res.status(200).json({
+    hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+    hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+    hasJwtSecret: Boolean(process.env.JWT_SECRET),
+    nodeEnv: process.env.NODE_ENV || 'undefined',
+    dbHost: process.env.DB_HOST || 'undefined',
+  });
 });
 
 async function bootstrap() {
@@ -105,6 +115,20 @@ export default async function handler(req: any, res: any) {
   if (mode === 'subscribe' && token === verifyToken && challenge) {
     res.setHeader('Content-Type', 'text/plain');
     return res.status(200).send(challenge);
+  }
+
+  if (req.url === '/api/health' || req.url === '/health') {
+    return res.status(200).json({ status: 'ok', serverTime: new Date().toISOString() });
+  }
+
+  if (req.url === '/api/debug-env' || req.url === '/debug-env') {
+    return res.status(200).json({
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+      hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+      hasJwtSecret: Boolean(process.env.JWT_SECRET),
+      nodeEnv: process.env.NODE_ENV || 'undefined',
+      dbHost: process.env.DB_HOST || 'undefined',
+    });
   }
 
   try {
