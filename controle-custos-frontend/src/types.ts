@@ -1,6 +1,8 @@
 export type TipoConta = 'banco' | 'carteira_movel' | 'dinheiro_fisico' | 'poupanca';
 export type MoedaConta = 'AOA' | 'USD' | 'EUR';
 
+export type FinalidadeConta = 'pessoal' | 'negocio';
+
 export interface Conta {
   id: string;
   nome: string;
@@ -8,6 +10,7 @@ export interface Conta {
   moeda: MoedaConta;
   saldoAtual: number;
   ativa: boolean;
+  finalidade?: FinalidadeConta;
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -38,6 +41,9 @@ export interface Transacao {
   data: string;
   origem: OrigemTransacao;
   contaDestinoId?: string;
+  fonteRendimentoId?: string;
+  espacoPartilhadoId?: string;
+  divisaoConjunta?: boolean;
   taxaCambioUsada?: number;
   criadoEm: string;
   atualizadoEm: string;
@@ -53,6 +59,9 @@ export interface NovaTransacao {
   data: string;
   categoriaId?: string;
   contaDestinoId?: string;
+  fonteRendimentoId?: string;
+  espacoPartilhadoId?: string;
+  divisaoConjunta?: boolean;
   taxaCambioUsada?: number;
 }
 
@@ -194,6 +203,7 @@ export interface TaxaCambioItem {
   origem: string;
   destino: string;
   taxaOficial: number;
+  fonteTaxaOficial?: string;
   taxaPersonalizada: number | null;
   usarPersonalizada: boolean;
 }

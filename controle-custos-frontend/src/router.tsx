@@ -9,7 +9,7 @@ import { EventosPage } from './pages/EventosPage';
 import { EspacosPage } from './pages/EspacosPage';
 import { CambioPage } from './pages/CambioPage';
 import { AboutPage } from './pages/AboutPage';
-import { transacoesApi, contasApi, categoriasApi } from './api/financas';
+import { transacoesApi, contasApi, categoriasApi, fontesRendimentoApi, espacosPartilhadosApi } from './api/financas';
 
 const mesAtualStr = () => String(new Date().getMonth() + 1).padStart(2, '0');
 const anoAtualStr = () => String(new Date().getFullYear());
@@ -26,12 +26,14 @@ export const router = createBrowserRouter([
           const mes = mesAtualStr();
           const ano = anoAtualStr();
           try {
-            const [dashboard, contas, categorias] = await Promise.all([
+            const [dashboard, contas, categorias, fontes, espacos] = await Promise.all([
               transacoesApi.obterDashboard(mes, ano),
               contasApi.listar().catch(() => []),
               categoriasApi.listar().catch(() => []),
+              fontesRendimentoApi.listar().catch(() => []),
+              espacosPartilhadosApi.listar().catch(() => []),
             ]);
-            return { dashboard, contas, categorias, mes, ano };
+            return { dashboard, contas, categorias, fontes, espacos, mes, ano };
           } catch {
             return {
               dashboard: {
@@ -44,6 +46,8 @@ export const router = createBrowserRouter([
               },
               contas: [],
               categorias: [],
+              fontes: [],
+              espacos: [],
               mes,
               ano,
             };

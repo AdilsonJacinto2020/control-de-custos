@@ -1,0 +1,205 @@
+.whatsapp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.whatsapp-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.whatsapp-modal-card {
+  position: relative;
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, #0f172a);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  padding: 1.75rem;
+  z-index: 10;
+  animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.whatsapp-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  transition: all 0.15s;
+}
+
+.whatsapp-modal-close:hover {
+  color: var(--text-primary, #0f172a);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.whatsapp-modal-header {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.whatsapp-modal-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  margin-bottom: 0.75rem;
+}
+
+.whatsapp-modal-header h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.whatsapp-modal-header p {
+  font-size: 0.85rem;
+  color: var(--text-muted, #64748b);
+  line-height: 1.4;
+}
+
+.whatsapp-modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted, #64748b);
+  font-size: 0.9rem;
+}
+
+.whatsapp-code-display {
+  background: rgba(16, 185, 129, 0.06);
+  border: 2px dashed rgba(16, 185, 129, 0.35);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.whatsapp-code-digits {
+  font-family: monospace;
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  color: #10b981;
+  display: block;
+}
+
+.whatsapp-timer-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-muted, #64748b);
+  margin-top: 0.5rem;
+}
+
+.whatsapp-steps-box {
+  background: var(--bg-surface, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 0.625rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.whatsapp-steps-box h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.whatsapp-steps-box ol {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #334155);
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.whatsapp-command-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.5rem;
+  font-family: monospace;
+  font-size: 0.95rem;
+}
+
+.whatsapp-command-box code {
+  font-weight: 600;
+}
+
+.btn-copy-command {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #ffffff;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-copy-command:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.whatsapp-security-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 1.25rem;
+  line-height: 1.35;
+}
+
+.whatsapp-expired-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.whatsapp-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+}

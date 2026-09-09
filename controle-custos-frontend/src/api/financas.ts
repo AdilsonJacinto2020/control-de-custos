@@ -13,9 +13,16 @@ import type {
   PontoProjecao,
 } from '../types';
 
+export const usuariosApi = {
+  gerarCodigoWhatsapp: () =>
+    apiClient<{ codigo: string; expiraEm: string }>('/usuarios/whatsapp/gerar-codigo', {
+      method: 'POST',
+    }),
+};
+
 export const contasApi = {
   listar: () => apiClient<Conta[]>('/contas'),
-  criar: (conta: { nome: string; tipo?: string; moeda?: string }) =>
+  criar: (conta: { nome: string; tipo?: string; moeda?: string; finalidade?: string }) =>
     apiClient<Conta>('/contas', {
       method: 'POST',
       body: JSON.stringify(conta),

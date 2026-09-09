@@ -241,14 +241,17 @@ export const CambioView: React.FC = () => {
                     <div>
                       <div className="cotacao-par-title">{t.par}</div>
                       <div className="cotacao-oficial-info">
-                        Taxa Oficial:{' '}
+                        Taxa de Referência:{' '}
                         <strong className="cotacao-oficial-valor">
                           {t.taxaOficial.toLocaleString('pt-AO')}
                         </strong>
                       </div>
+                      <div className="text-[10px] text-muted mt-0.5">
+                        {t.fonteTaxaOficial || 'Mercado (open.er-api.com) — não é taxa BNA'}
+                      </div>
                     </div>
                     <span className={`badge ${isCustomActive ? 'text-brand' : ''}`}>
-                      {isCustomActive ? 'Mercado / Própria' : 'Oficial'}
+                      {isCustomActive ? 'Mercado / Própria' : 'Referência'}
                     </span>
                   </div>
 

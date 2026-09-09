@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, Trash2, Building, Smartphone, Banknote, PiggyBank, RefreshCw, AlertCircle } from 'lucide-react';
 import { contasApi } from '../api/financas';
-import type { Conta, TipoConta, MoedaConta } from '../types';
+import type { Conta, TipoConta, MoedaConta, FinalidadeConta } from '../types';
 
 interface ContasViewProps {
   onContaAlterada?: () => void;
@@ -15,6 +15,7 @@ export const ContasView: React.FC<ContasViewProps> = ({ onContaAlterada }) => {
   const [nome, setNome] = useState('');
   const [tipo, setTipo] = useState<TipoConta>('banco');
   const [moeda, setMoeda] = useState<MoedaConta>('AOA');
+  const [finalidade, setFinalidade] = useState<FinalidadeConta>('pessoal');
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
@@ -40,8 +41,9 @@ export const ContasView: React.FC<ContasViewProps> = ({ onContaAlterada }) => {
 
     setSalvando(true);
     try {
-      await contasApi.criar({ nome: nome.trim(), tipo, moeda });
+      await contasApi.criar({ nome: nome.trim(), tipo, moeda, finalidade });
       setNome('');
+      setFinalidade('pessoal');
       await carregarContas();
       onContaAlterada?.();
     } catch (err) {
@@ -148,6 +150,14 @@ export const ContasView: React.FC<ContasViewProps> = ({ onContaAlterada }) => {
               </select>
             </label>
 
+            <label>
+              Finalidade / Uso da Conta (Ideia 4.6)
+              <select value={finalidade} onChange={(e) => setFinalidade(e.target.value as FinalidadeConta)}>
+                <option value="pessoal">👤 Finanças Pessoais / Doméstica</option>
+                <option value="negocio">💼 Pequeno Negócio / Vendas / B2B</option>
+              </select>
+            </label>
+
             <button type="submit" className="btn-primary" disabled={salvando}>
               {salvando ? 'Salvando...' : 'Adicionar Conta'}
             </button>
@@ -170,7 +180,12 @@ export const ContasView: React.FC<ContasViewProps> = ({ onContaAlterada }) => {
                     <div className="conta-icone-badge">{getIconeTipo(c.tipo)}</div>
                     <div>
                       <h4 className="conta-nome">{c.nome}</h4>
-                      <span className="conta-tipo-label">{getNomeTipo(c.tipo)}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="conta-tipo-label">{getNomeTipo(c.tipo)}</span>
+                        <span className={`badge !text-[10px] ${c.finalidade === 'negocio' ? 'bg-purple-500/10 text-purple-600' : 'bg-slate-500/10 text-slate-600'}`}>
+                          {c.finalidade === 'negocio' ? '💼 Negócio' : '👤 Pessoal'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 

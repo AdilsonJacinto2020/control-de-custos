@@ -26,11 +26,13 @@ import {
   CheckCircle2,
   ChevronRight,
   Info,
+  MessageSquare,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { formatUserName } from '../utils/formatters';
 import { FinControlLogo } from '../components/FinControlLogo';
+import { VincularWhatsappModal } from '../components/VincularWhatsappModal';
 import { GoogleLogin } from '@react-oauth/google';
 import './AppLayout.css';
 
@@ -106,6 +108,7 @@ const CATEGORIAS_TITULO = {
 
 export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const location = useLocation();
   const navigation = useNavigation();
   const { theme, toggleTheme } = useTheme();
@@ -290,6 +293,15 @@ export function AppLayout() {
           {/* Lado Direito: Alternador de Tema & Perfil */}
           <div className="topbar-right-actions">
             <button
+              className="btn-secondary !py-1 !px-2.5 !text-xs flex items-center gap-1.5 text-emerald-600 hover:text-emerald-500 font-medium"
+              onClick={() => setWhatsappModalOpen(true)}
+              title="Vincular ao WhatsApp Bot"
+            >
+              <MessageSquare size={14} className="text-emerald-500" />
+              <span className="hidden sm:inline">Vincular WhatsApp</span>
+            </button>
+
+            <button
               className="btn-theme-round"
               onClick={toggleTheme}
               title={`Mudar para modo ${theme === 'dark' ? 'claro' : 'escuro'}`}
@@ -445,6 +457,17 @@ export function AppLayout() {
                       <button
                         onClick={() => {
                           setMobileMenuOpen(false);
+                          setWhatsappModalOpen(true);
+                        }}
+                        className="btn-secondary !text-xs !py-1.5 flex items-center gap-1.5 text-emerald-600"
+                      >
+                        <MessageSquare size={13} className="text-emerald-500" />
+                        Vincular WhatsApp
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setMobileMenuOpen(false);
                           logout();
                         }}
                         className="btn-drawer-logout"
@@ -470,6 +493,12 @@ export function AppLayout() {
             </div>
           </div>
         )}
+
+        {/* Modal de Vinculação com WhatsApp */}
+        <VincularWhatsappModal
+          isOpen={whatsappModalOpen}
+          onClose={() => setWhatsappModalOpen(false)}
+        />
       </div>
     </div>
   );

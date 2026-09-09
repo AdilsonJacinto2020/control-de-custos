@@ -11,16 +11,27 @@ import {
   ListOrdered,
   RefreshCw,
   AlertCircle,
+  ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { transacoesApi } from '../api/financas';
 import { StatCard } from '../components/StatCard';
 import { useAuth } from '../context/AuthContext';
-import type { DashboardData, Conta, CategoriaItem, TipoTransacao } from '../types';
+import type {
+  DashboardData,
+  Conta,
+  CategoriaItem,
+  TipoTransacao,
+  FonteRendimento,
+  EspacoPartilhadoItem,
+} from '../types';
 
 interface DashboardLoaderData {
   dashboard: DashboardData;
   contas: Conta[];
   categorias: CategoriaItem[];
+  fontes?: FonteRendimento[];
+  espacos?: EspacoPartilhadoItem[];
   mes: string;
   ano: string;
 }
@@ -28,8 +39,15 @@ interface DashboardLoaderData {
 const hoje = () => new Date().toISOString().slice(0, 10);
 
 export function DashboardPage() {
-  const { dashboard: initialDashboard, contas: initialContas, categorias: initialCategorias, mes, ano } =
-    useLoaderData() as DashboardLoaderData;
+  const {
+    dashboard: initialDashboard,
+    contas: initialContas,
+    categorias: initialCategorias,
+    fontes: initialFontes = [],
+    espacos: initialEspacos = [],
+    mes,
+    ano,
+  } = useLoaderData() as DashboardLoaderData;
   const revalidator = useRevalidator();
   const { recordActivity } = useAuth();
 
@@ -38,6 +56,8 @@ export function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardData>(initialDashboard);
   const [contas] = useState<Conta[]>(initialContas);
   const [categorias] = useState<CategoriaItem[]>(initialCategorias);
+  const [fontes] = useState<FonteRendimento[]>(initialFontes);
+  const [espacos] = useState<EspacoPartilhadoItem[]>(initialEspacos);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -47,6 +67,9 @@ export function DashboardPage() {
   const [contaId, setContaId] = useState(initialContas[0]?.id || '');
   const [contaDestinoId, setContaDestinoId] = useState('');
   const [categoriaId, setCategoriaId] = useState(initialCategorias[0]?.id || '');
+  const [fonteRendimentoId, setFonteRendimentoId] = useState('');
+  const [espacoPartilhadoId, setEspacoPartilhadoId] = useState('');
+  const [divisaoConjunta, setDivisaoConjunta] = useState(false);
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [data, setData] = useState(hoje());
@@ -87,6 +110,9 @@ export function DashboardPage() {
         contaId,
         contaDestinoId: tipo === 'transferencia_entre_contas' ? contaDestinoId : undefined,
         categoriaId: tipo !== 'transferencia_entre_contas' ? (categoriaId || undefined) : undefined,
+        fonteRendimentoId: tipo === 'receita' ? (fonteRendimentoId || undefined) : undefined,
+        espacoPartilhadoId: espacoPartilhadoId || undefined,
+        divisaoConjunta: espacoPartilhadoId ? divisaoConjunta : undefined,
         descricao: descricao.trim(),
         valor: valorNum,
         data,
@@ -94,6 +120,9 @@ export function DashboardPage() {
 
       setDescricao('');
       setValor('');
+      setFonteRendimentoId('');
+      setEspacoPartilhadoId('');
+      setDivisaoConjunta(false);
       setData(hoje());
       recordActivity();
       revalidator.revalidate();
@@ -192,6 +221,30 @@ export function DashboardPage() {
         />
       </section>
 
+      {/* Indicador de Confiança da Projeção Financeira (Ideia 4.3) */}
+      <div className="card !p-3.5 flex items-center justify-between flex-wrap gap-3 bg-surface border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0">
+            <ShieldCheck size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <strong className="text-sm">Confiança das Projeções & Fluxo de Caixa:</strong>
+              <span className={`badge ${dashboard?.transacoes?.length >= 5 ? 'text-emerald-600 bg-emerald-500/10' : 'text-amber-600 bg-amber-500/10'}`}>
+                {dashboard?.transacoes?.length >= 5 ? '🟢 Alta Confiança (Histórico Ativo)' : '🟡 Histórico em Construção'}
+              </span>
+            </div>
+            <p className="text-xs text-muted mt-0.5">
+              Cálculos baseados em médias móveis reais de 3 meses e conversão em tempo real sem números arbitrários.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <Sparkles size={14} className="text-amber-500" />
+          <span>Multi-Moeda (AOA / USD / EUR)</span>
+        </div>
+      </div>
+
       {erro && (
         <div className="alert-box error mb-4">
           <AlertCircle size={18} />
@@ -289,6 +342,56 @@ export function DashboardPage() {
                 </label>
               )}
             </div>
+
+            {/* Seletor de Fonte de Rendimento para Receitas */}
+            {tipo === 'receita' && fontes.length > 0 && (
+              <label>
+                Fonte de Rendimento (Origem do Ganho)
+                <select
+                  value={fonteRendimentoId}
+                  onChange={(e) => setFonteRendimentoId(e.target.value)}
+                >
+                  <option value="">Receita Avulsa / Geral</option>
+                  {fontes.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome} ({f.tipo === 'fixo' ? 'Salário/Fixo' : 'Variável/Biscate'} - {f.valorBase.toLocaleString('pt-AO')} {f.moeda})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {/* Seletor de Espaço Partilhado (divisão de contas) */}
+            {espacos.length > 0 && tipo !== 'transferencia_entre_contas' && (
+              <div className="espaco-partilhado-box border border-dashed border-border rounded-lg p-2.5 my-1 bg-surface">
+                <label className="text-xs font-semibold mb-1 block">
+                  Vincular a Espaço Partilhado (Opcional)
+                  <select
+                    value={espacoPartilhadoId}
+                    onChange={(e) => setEspacoPartilhadoId(e.target.value)}
+                    className="mt-1"
+                  >
+                    <option value="">Nenhum (Lançamento Pessoal)</option>
+                    {espacos.map((esp) => (
+                      <option key={esp.id} value={esp.id}>
+                        👥 {esp.nome} ({esp.membros?.length || 0} membros)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {espacoPartilhadoId && (
+                  <label className="flex items-center gap-2 text-xs text-primary font-medium mt-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={divisaoConjunta}
+                      onChange={(e) => setDivisaoConjunta(e.target.checked)}
+                    />
+                    <span>Esta despesa/receita entra no acerto conjunto de contas do grupo</span>
+                  </label>
+                )}
+              </div>
+            )}
 
             <label>
               Descrição
