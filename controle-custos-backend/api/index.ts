@@ -57,7 +57,45 @@ async function bootstrap() {
   await app.init();
 }
 
+// CORS middleware explícito a nível do Express antes de qualquer processamento
+server.use((req, res, next) => {
+  const origin = req.headers.origin as string;
+  if (
+    !origin ||
+    origin.endsWith('.vercel.app') ||
+    origin.includes('localhost') ||
+    origin.includes('fincontrol')
+  ) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
 export default async function handler(req: any, res: any) {
+  const origin = req.headers?.origin;
+  if (
+    !origin ||
+    origin.endsWith('.vercel.app') ||
+    origin.includes('localhost') ||
+    origin.includes('fincontrol')
+  ) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
   // Se for a verificação do webhook da Meta, atende imediatamente sem esperar o NestJS carregar banco
   const mode = req.query?.['hub.mode'];
   const token = req.query?.['hub.verify_token'];
@@ -65,6 +103,7 @@ export default async function handler(req: any, res: any) {
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || 'fincontrol_token';
 
   if (mode === 'subscribe' && token === verifyToken && challenge) {
+    res.setHeader('Content-Type', 'text/plain');
     return res.status(200).send(challenge);
   }
 
@@ -78,6 +117,8 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({
       error: 'Vercel Initialization Error',
       message: err?.message,
+      details: String(err),
+      stack: err?.stack,
     });
   }
 }

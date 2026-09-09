@@ -46,10 +46,49 @@ async function bootstrap() {
   }
 }
 
+// CORS middleware explícito a nível do Express antes de qualquer processamento
+server.use((req, res, next) => {
+  const origin = req.headers.origin as string;
+  if (
+    !origin ||
+    origin.endsWith('.vercel.app') ||
+    origin.includes('localhost') ||
+    origin.includes('fincontrol')
+  ) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
 let isInitialized = false;
 
 // Handler para Vercel Serverless Function
 export default async function handler(req: any, res: any) {
+  // CORS fallback direto no handler
+  const origin = req.headers?.origin;
+  if (
+    !origin ||
+    origin.endsWith('.vercel.app') ||
+    origin.includes('localhost') ||
+    origin.includes('fincontrol')
+  ) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
   // Verificação instantânea do webhook da Meta para evitar timeout ou falha de boot da DB
   const mode = req.query?.['hub.mode'];
   const token = req.query?.['hub.verify_token'];
@@ -76,6 +115,7 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({
       error: 'Error initializing NestJS application',
       message: error?.message || 'Unknown error',
+      details: String(error),
       stack: error?.stack,
     });
   }
