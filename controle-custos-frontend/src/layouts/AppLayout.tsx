@@ -98,6 +98,12 @@ const navItems: NavItem[] = [
     path: '/about',
     categoria: 'colaboracao',
   },
+  {
+    label: 'Privacidade & Dados',
+    icon: ShieldCheck,
+    path: '/privacy',
+    categoria: 'colaboracao',
+  },
 ];
 
 const CATEGORIAS_TITULO = {
