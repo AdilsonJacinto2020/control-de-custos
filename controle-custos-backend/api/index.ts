@@ -29,10 +29,15 @@ server.get(['/api/debug-env', '/debug-env'], (req, res) => {
     hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
     hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
     hasJwtSecret: Boolean(process.env.JWT_SECRET),
+    hasWhatsappPhoneNumberId: Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID),
+    whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || 'missing',
+    hasWhatsappAccessToken: Boolean(process.env.WHATSAPP_ACCESS_TOKEN),
+    whatsappAccessTokenLength: process.env.WHATSAPP_ACCESS_TOKEN ? process.env.WHATSAPP_ACCESS_TOKEN.length : 0,
+    hasWhatsappVerifyToken: Boolean(process.env.WHATSAPP_VERIFY_TOKEN),
     nodeEnv: process.env.NODE_ENV || 'undefined',
-    dbHost: process.env.DB_HOST || 'undefined',
   });
 });
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
@@ -126,10 +131,15 @@ export default async function handler(req: any, res: any) {
       hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
       hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
       hasJwtSecret: Boolean(process.env.JWT_SECRET),
+      hasWhatsappPhoneNumberId: Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID),
+      whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || 'missing',
+      hasWhatsappAccessToken: Boolean(process.env.WHATSAPP_ACCESS_TOKEN),
+      whatsappAccessTokenLength: process.env.WHATSAPP_ACCESS_TOKEN ? process.env.WHATSAPP_ACCESS_TOKEN.length : 0,
+      hasWhatsappVerifyToken: Boolean(process.env.WHATSAPP_VERIFY_TOKEN),
       nodeEnv: process.env.NODE_ENV || 'undefined',
-      dbHost: process.env.DB_HOST || 'undefined',
     });
   }
+
 
   if (req.url === '/api/test-db' || req.url === '/test-db') {
     const { Client } = await import('pg');
