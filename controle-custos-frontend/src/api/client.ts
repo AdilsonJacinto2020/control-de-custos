@@ -1,8 +1,10 @@
-const API_URL =
+const rawApiUrl =
   import.meta.env.VITE_API_URL ??
   (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
-    ? ''
+    ? 'https://control-de-custos.vercel.app'
     : 'http://localhost:3001');
+
+const API_URL = rawApiUrl.replace(/\/+$/, '');
 
 export async function apiClient<T>(path: string, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem('fincontrol_token');
@@ -15,7 +17,8 @@ export async function apiClient<T>(path: string, init?: RequestInit): Promise<T>
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const response = await fetch(`${API_URL}${normalizedPath}`, {
     ...init,
     headers,
   });
