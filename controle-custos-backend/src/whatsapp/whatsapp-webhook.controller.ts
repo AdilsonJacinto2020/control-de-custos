@@ -31,14 +31,32 @@ export class WhatsappWebhookController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async handleIncomingMessage(@Body() body: any) {
-    // Suporta payload direto simples ou payload padrão da Cloud API da Meta
-    let from = body.from;
-    let text = body.text;
+    // Suporta payload direto simples (ex: { from: "+244923...", text: "Almoco 3500 kz" })
+    // ou payload padrão completo da Cloud API da Meta (WhatsApp Business Cloud API)
+    let from: string | undefined = body.from;
+    let text: string | undefined = body.text;
 
-    if (body.entry && body.entry[0]?.changes && body.entry[0]?.changes[0]?.value?.messages) {
-      const msg = body.entry[0].changes[0].value.messages[0];
-      from = msg.from;
-      text = msg.text?.body;
+    try {
+      const entry = body?.entry?.[0];
+      const change = entry?.changes?.[0];
+      const value = change?.value;
+      const message = value?.messages?.[0];
+
+      if (message) {
+        from = message.from;
+        if (message.type === 'text' && message.text?.body) {
+          text = message.text.body;
+        } else if (message.type === 'button' && message.button?.text) {
+          text = message.button.text;
+        } else if (message.type === 'interactive') {
+          text =
+            message.interactive?.button_reply?.title ||
+            message.interactive?.list_reply?.title ||
+            message.interactive?.button_reply?.id;
+        }
+      }
+    } catch {
+      // payload simples de fallback
     }
 
     if (!from || !text) {
@@ -51,4 +69,5 @@ export class WhatsappWebhookController {
       reply,
     };
   }
+
 }
