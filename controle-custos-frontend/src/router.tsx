@@ -9,6 +9,7 @@ import { EventosPage } from './pages/EventosPage';
 import { EspacosPage } from './pages/EspacosPage';
 import { CambioPage } from './pages/CambioPage';
 import { AboutPage } from './pages/AboutPage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { transacoesApi, contasApi, categoriasApi, fontesRendimentoApi, espacosPartilhadosApi } from './api/financas';
 
 const mesAtualStr = () => String(new Date().getMonth() + 1).padStart(2, '0');
@@ -85,6 +86,10 @@ export const router = createBrowserRouter([
       {
         path: 'about',
         element: <AboutPage />,
+      },
+      {
+        path: 'privacy',
+        element: <PrivacyPage />,
       },
     ],
   },

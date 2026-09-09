@@ -216,14 +216,20 @@ export function AppLayout() {
           )}
 
           <div className="sidebar-credits">
-            <Link to="/about" className="!no-underline hover:text-brand transition-colors text-muted">
-              v2.0 • Sobre o FinControl
-            </Link>
+            <div className="flex items-center gap-2 justify-center">
+              <Link to="/about" className="!no-underline hover:text-brand transition-colors text-muted text-[11px]">
+                Sobre
+              </Link>
+              <span className="text-muted text-[10px]">•</span>
+              <Link to="/privacy" className="!no-underline hover:text-brand transition-colors text-muted text-[11px]">
+                Privacidade
+              </Link>
+            </div>
             <a
               href="https://profile-adijacinto.vercel.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="!no-underline text-brand font-semibold hover:brightness-110"
+              className="!no-underline text-brand font-semibold hover:brightness-110 text-[11px]"
             >
               Adilson Jacinto
             </a>
