@@ -34,6 +34,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatUserName } from '../utils/formatters';
 import { FinControlLogo } from '../components/FinControlLogo';
 import { VincularWhatsappModal } from '../components/VincularWhatsappModal';
+import { BoasVindasModal } from '../components/BoasVindasModal';
 import { GoogleLogin } from '@react-oauth/google';
 import './AppLayout.css';
 
@@ -122,10 +123,20 @@ const CATEGORIAS_TITULO = {
 export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [boasVindasOpen, setBoasVindasOpen] = useState(false);
   const location = useLocation();
   const navigation = useNavigation();
   const { theme, toggleTheme } = useTheme();
   const { user, gamification, checkInZeroExpense, loginGoogle, logout } = useAuth();
+
+  const handleGoogleSuccess = async (credential: string) => {
+    try {
+      await loginGoogle(credential);
+      setBoasVindasOpen(true);
+    } catch (err) {
+      console.error('Falha no login:', err);
+    }
+  };
 
   const isRouteLoading = navigation.state === 'loading';
 
@@ -220,7 +231,7 @@ export function AppLayout() {
             <div className="sidebar-google-login">
               <GoogleLogin
                 onSuccess={(res) => {
-                  if (res.credential) loginGoogle(res.credential);
+                  if (res.credential) handleGoogleSuccess(res.credential);
                 }}
                 shape="pill"
                 size="medium"
@@ -503,7 +514,7 @@ export function AppLayout() {
                     <div className="w-full flex justify-center">
                       <GoogleLogin
                         onSuccess={(res) => {
-                          if (res.credential) loginGoogle(res.credential);
+                          if (res.credential) handleGoogleSuccess(res.credential);
                           setMobileMenuOpen(false);
                         }}
                         shape="pill"
@@ -522,6 +533,17 @@ export function AppLayout() {
           isOpen={whatsappModalOpen}
           onClose={() => setWhatsappModalOpen(false)}
         />
+
+        {/* Modal Profissional de Boas-Vindas */}
+        {user && (
+          <BoasVindasModal
+            isOpen={boasVindasOpen}
+            userName={user.name}
+            userEmail={user.email}
+            userPicture={user.picture}
+            onClose={() => setBoasVindasOpen(false)}
+          />
+        )}
       </div>
     </div>
   );

@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { UserProfile, GamificationStats } from '../types/gamification';
 import { authApi } from '../api/auth';
 import { formatUserName } from '../utils/formatters';
-import confetti from 'canvas-confetti';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -40,10 +39,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
-  // Se não houver usuário autenticado ao inicializar, podemos iniciar sessão como convidado
+  // Se não houver token armazenado e não houver usuário, inicia como convidado
   useEffect(() => {
     const token = localStorage.getItem('fincontrol_token');
-    if (!token && !user) {
+    const savedUser = localStorage.getItem('fincontrol_user');
+    if (!token && !savedUser) {
       loginGuest();
     }
   }, []);
@@ -62,12 +62,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       bestStreak,
       lastCheckinDate: today,
     });
-
-    confetti({
-      particleCount: 50,
-      spread: 60,
-      origin: { y: 0.8 },
-    });
   };
 
   const checkInZeroExpense = async () => {
@@ -78,26 +72,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginGoogle = async (credential: string) => {
     try {
       const response = await authApi.loginGoogle(credential);
-      localStorage.setItem('fincontrol_token', response.accessToken);
+      if (response && response.accessToken) {
+        localStorage.setItem('fincontrol_token', response.accessToken);
 
-      const loggedUser: UserProfile = {
-        id: response.user.id,
-        name: formatUserName(response.user.nome || 'Usuário Google'),
-        email: response.user.email,
-        picture: response.user.avatarUrl,
-        streak: (user?.streak || 0) + 1,
-        bestStreak: Math.max(user?.bestStreak || 0, (user?.streak || 0) + 1),
-        lastCheckinDate: new Date().toISOString().slice(0, 10),
-      };
+        const loggedUser: UserProfile = {
+          id: response.user.id,
+          name: formatUserName(response.user.nome || 'Usuário Google'),
+          email: response.user.email,
+          picture: response.user.avatarUrl,
+          streak: (user?.streak || 0) + 1,
+          bestStreak: Math.max(user?.bestStreak || 0, (user?.streak || 0) + 1),
+          lastCheckinDate: new Date().toISOString().slice(0, 10),
+        };
 
-      setUser(loggedUser);
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
+        setUser(loggedUser);
+        localStorage.setItem('fincontrol_user', JSON.stringify(loggedUser));
+      }
     } catch (e) {
-      console.error('Erro ao processar Google Login no backend:', e);
+      console.error('Erro ao autenticar com o Google:', e);
       throw e;
     }
   };
@@ -105,18 +97,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginGuest = async () => {
     try {
       const response = await authApi.loginGuest();
-      localStorage.setItem('fincontrol_token', response.accessToken);
+      if (response && response.accessToken) {
+        localStorage.setItem('fincontrol_token', response.accessToken);
 
-      const guestUser: UserProfile = {
-        id: response.user.id,
-        name: formatUserName(response.user.nome || 'Convidado Demo'),
-        email: response.user.email,
-        streak: 1,
-        bestStreak: 1,
-        lastCheckinDate: new Date().toISOString().slice(0, 10),
-      };
+        const guestUser: UserProfile = {
+          id: response.user.id,
+          name: formatUserName(response.user.nome || 'Convidado Demo'),
+          email: response.user.email,
+          streak: 1,
+          bestStreak: 1,
+          lastCheckinDate: new Date().toISOString().slice(0, 10),
+        };
 
-      setUser(guestUser);
+        setUser(guestUser);
+        localStorage.setItem('fincontrol_user', JSON.stringify(guestUser));
+      }
     } catch (e) {
       console.error('Erro ao autenticar como convidado:', e);
     }

@@ -9,7 +9,7 @@ interface FinControlLogoProps {
 export const FinControlLogo: React.FC<FinControlLogoProps> = ({
   className,
   height = 36,
-  showSubtitle = true,
+  showSubtitle = false,
 }) => {
   return (
     <div className={`flex items-center gap-2.5 select-none ${className || ''}`}>
