@@ -104,6 +104,16 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ status: 'ok', serverTime: new Date().toISOString() });
   }
 
+  if (req.url === '/api/debug-env' || req.url === '/debug-env') {
+    return res.status(200).json({
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+      hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+      hasJwtSecret: Boolean(process.env.JWT_SECRET),
+      nodeEnv: process.env.NODE_ENV || 'undefined',
+      dbHost: process.env.DB_HOST || 'undefined',
+    });
+  }
+
   try {
     if (!isInitialized) {
       await bootstrap();
