@@ -172,7 +172,9 @@ export function AppLayout() {
       <aside className="layout-sidebar">
         <div className="sidebar-top">
           <div className="sidebar-brand-box">
-            <FinControlLogo height={38} />
+            <Link to="/" className="!no-underline transition-opacity hover:opacity-85 flex items-center" title="FinControl Home">
+              <FinControlLogo height={38} />
+            </Link>
           </div>
 
           <nav className="sidebar-nav-container">
@@ -426,7 +428,14 @@ export function AppLayout() {
 
               {/* Cabeçalho da Gaveta */}
               <div className="mobile-drawer-header">
-                <FinControlLogo height={28} />
+                <Link
+                  to="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="!no-underline transition-opacity hover:opacity-85 flex items-center"
+                  title="FinControl Home"
+                >
+                  <FinControlLogo height={28} />
+                </Link>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="drawer-close-btn"
