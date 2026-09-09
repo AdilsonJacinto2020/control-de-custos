@@ -5,6 +5,7 @@ import { formatUserName } from '../utils/formatters';
 
 interface AuthContextType {
   user: UserProfile | null;
+  isAuthReady: boolean;
   gamification: GamificationStats;
   loginGoogle: (credential: string) => Promise<void>;
   loginGuest: () => Promise<void>;
@@ -16,6 +17,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('fincontrol_user');
     if (!saved) return null;
@@ -41,11 +43,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Se não houver token armazenado e não houver usuário, inicia como convidado
   useEffect(() => {
-    const token = localStorage.getItem('fincontrol_token');
-    const savedUser = localStorage.getItem('fincontrol_user');
-    if (!token && !savedUser) {
-      loginGuest();
+    async function initAuth() {
+      const token = localStorage.getItem('fincontrol_token');
+      const savedUser = localStorage.getItem('fincontrol_user');
+      if (!token || !savedUser) {
+        await loginGuest();
+      }
+      setIsAuthReady(true);
     }
+    initAuth();
   }, []);
 
   const recordActivity = () => {
@@ -88,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUser(loggedUser);
         localStorage.setItem('fincontrol_user', JSON.stringify(loggedUser));
+        setIsAuthReady(true);
       }
     } catch (e) {
       console.error('Erro ao autenticar com o Google:', e);
@@ -113,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUser(guestUser);
         localStorage.setItem('fincontrol_user', JSON.stringify(guestUser));
+        setIsAuthReady(true);
       }
     } catch (e) {
       console.error('Erro ao autenticar como convidado:', e);
@@ -184,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
+        isAuthReady,
         gamification,
         loginGoogle,
         loginGuest,
