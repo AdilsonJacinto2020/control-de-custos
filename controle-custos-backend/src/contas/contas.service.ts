@@ -65,10 +65,12 @@ export class ContasService {
   }
 
   async recalcularSaldo(contaId: string, delta: number): Promise<void> {
-    const conta = await this.contasRepository.findOne({ where: { id: contaId } });
-    if (conta) {
-      conta.saldoAtual = Number(conta.saldoAtual) + Number(delta);
-      await this.contasRepository.save(conta);
-    }
+    // Antes fazia leitura-depois-escrita (find + save), o que é vulnerável
+    // a condição de corrida quando dois lançamentos chegam quase ao mesmo
+    // tempo (ex: duas mensagens de WhatsApp seguidas) — o segundo podia
+    // sobrescrever o resultado do primeiro. `increment` faz um UPDATE
+    // atómico direto na base de dados (SET saldo_atual = saldo_atual + delta),
+    // sem essa janela de corrida.
+    await this.contasRepository.increment({ id: contaId }, 'saldoAtual', delta);
   }
 }

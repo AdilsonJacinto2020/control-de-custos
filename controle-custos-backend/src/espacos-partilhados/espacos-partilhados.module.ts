@@ -5,6 +5,7 @@ import { MembroEspacoPartilhado } from './entities/membro-espaco.entity';
 import { Usuario } from '../usuarios/usuario.entity';
 import { EspacosPartilhadosService } from './espacos-partilhados.service';
 import { EspacosPartilhadosController } from './espacos-partilhados.controller';
+import { TransacoesModule } from '../transacoes/transacoes.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { EspacosPartilhadosController } from './espacos-partilhados.controller';
       MembroEspacoPartilhado,
       Usuario,
     ]),
+    TransacoesModule,
   ],
   controllers: [EspacosPartilhadosController],
   providers: [EspacosPartilhadosService],

@@ -55,20 +55,51 @@ export class OrcamentosService {
   async getStatusDetalhado(usuarioId: string): Promise<StatusOrcamento[]> {
     const orcamentos = await this.findAll(usuarioId);
     const hoje = new Date();
+
+    // ANTES: calculava sempre "dia do mês" / "dias no mês", mesmo para
+    // orçamentos com periodo = 'semanal', o que dava números sem sentido
+    // para quem configurasse um limite semanal. Agora cada orçamento usa
+    // a janela de período correta (mês civil ou semana corrente,
+    // segunda a domingo).
     const ano = hoje.getFullYear().toString();
     const mes = (hoje.getMonth() + 1).toString();
-    const diaAtual = hoje.getDate();
-    const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-    const diasRestantes = Math.max(0, diasNoMes - diaAtual);
+    const summaryMensal = await this.transacoesService.getDashboardSummary(usuarioId, mes, ano);
 
-    const summary = await this.transacoesService.getDashboardSummary(usuarioId, mes, ano);
+    // Janela da semana corrente (segunda a domingo)
+    const diaSemanaAtual = hoje.getDay(); // 0 = domingo
+    const offsetSegunda = diaSemanaAtual === 0 ? 6 : diaSemanaAtual - 1;
+    const inicioSemana = new Date(hoje);
+    inicioSemana.setDate(hoje.getDate() - offsetSegunda);
+    const todasTransacoesMes = summaryMensal.transacoes;
+    const transacoesDaSemana = todasTransacoesMes.filter((t) => {
+      const dataT = new Date(t.data);
+      return dataT >= inicioSemana && dataT <= hoje;
+    });
+    const gastoSemanaPorCategoria: Record<string, number> = {};
+    for (const t of transacoesDaSemana) {
+      if (t.tipo === 'despesa') {
+        const cat = t.categoriaId || 'sem_categoria';
+        gastoSemanaPorCategoria[cat] = (gastoSemanaPorCategoria[cat] || 0) + Number(t.valor);
+      }
+    }
 
     const resultados: StatusOrcamento[] = [];
 
     for (const orc of orcamentos) {
-      const gastoAtual = summary.porCategoria[orc.categoriaId] || 0;
+      const ehSemanal = orc.periodo === PeriodoOrcamento.SEMANAL;
+
+      const gastoAtual = ehSemanal
+        ? gastoSemanaPorCategoria[orc.categoriaId] || 0
+        : summaryMensal.porCategoria[orc.categoriaId] || 0;
+
+      const diaAtualNoPeriodo = ehSemanal ? offsetSegunda + 1 : hoje.getDate();
+      const diasTotaisNoPeriodo = ehSemanal
+        ? 7
+        : new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+      const diasRestantes = Math.max(0, diasTotaisNoPeriodo - diaAtualNoPeriodo);
+
       const percentualGasto = (gastoAtual / Number(orc.valorLimite)) * 100;
-      const ritmoDiario = diaAtual > 0 ? gastoAtual / diaAtual : 0;
+      const ritmoDiario = diaAtualNoPeriodo > 0 ? gastoAtual / diaAtualNoPeriodo : 0;
       const projecaoGastoFinal = gastoAtual + ritmoDiario * diasRestantes;
 
       let diasParaEstourarLimite: number | undefined;

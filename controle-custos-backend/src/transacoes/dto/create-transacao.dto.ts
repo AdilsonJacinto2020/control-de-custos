@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -47,4 +48,16 @@ export class CreateTransacaoDto {
   @IsNumber()
   @IsOptional()
   taxaCambioUsada?: number;
+
+  @IsUUID()
+  @IsOptional()
+  fonteRendimentoId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  espacoPartilhadoId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  divisaoConjunta?: boolean;
 }

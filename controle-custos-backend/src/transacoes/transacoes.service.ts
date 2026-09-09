@@ -74,6 +74,51 @@ export class TransacoesService {
     return query.orderBy('transacao.data', 'DESC').addOrderBy('transacao.criadoEm', 'DESC').getMany();
   }
 
+  /**
+   * Receitas de uma fonte específica dentro de uma janela de meses —
+   * usado pela projeção de rendimento variável para calcular a média
+   * móvel só daquela fonte, em vez de misturar todas as receitas do
+   * utilizador.
+   */
+  async findReceitasPorFonte(
+    usuarioId: string,
+    fonteRendimentoId: string,
+    meses = 3,
+  ): Promise<Transacao[]> {
+    const dataLimite = new Date();
+    dataLimite.setMonth(dataLimite.getMonth() - meses);
+    const dataLimiteStr = dataLimite.toISOString().slice(0, 10);
+
+    return this.transacoesRepository
+      .createQueryBuilder('transacao')
+      .where('transacao.usuarioId = :usuarioId', { usuarioId })
+      .andWhere('transacao.tipo = :tipo', { tipo: TipoTransacao.RECEITA })
+      .andWhere('transacao.fonteRendimentoId = :fonteRendimentoId', { fonteRendimentoId })
+      .andWhere('transacao.data >= :dataLimiteStr', { dataLimiteStr })
+      .getMany();
+  }
+
+  /** Despesas dos últimos N meses, usadas para calcular uma média móvel na projeção de fluxo de caixa. */
+  async findDespesasUltimosMeses(usuarioId: string, meses = 3): Promise<Transacao[]> {
+    const dataLimite = new Date();
+    dataLimite.setMonth(dataLimite.getMonth() - meses);
+    const dataLimiteStr = dataLimite.toISOString().slice(0, 10);
+
+    return this.transacoesRepository
+      .createQueryBuilder('transacao')
+      .where('transacao.usuarioId = :usuarioId', { usuarioId })
+      .andWhere('transacao.tipo = :tipo', { tipo: TipoTransacao.DESPESA })
+      .andWhere('transacao.data >= :dataLimiteStr', { dataLimiteStr })
+      .getMany();
+  }
+
+  /** Transações conjuntas de um espaço partilhado, usadas para calcular o saldo real a acertar entre membros. */
+  async findConjuntasPorEspaco(espacoPartilhadoId: string): Promise<Transacao[]> {
+    return this.transacoesRepository.find({
+      where: { espacoPartilhadoId, divisaoConjunta: true },
+    });
+  }
+
   async findOne(id: string, usuarioId: string): Promise<Transacao> {
     const transacao = await this.transacoesRepository.findOne({
       where: { id, usuarioId },

@@ -14,10 +14,18 @@ import { UsuariosModule } from '../usuarios/usuarios.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'fincontrol-default-secret-key-change-me'),
-        signOptions: { expiresIn: '7d' },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+          throw new Error(
+            'JWT_SECRET não está definido. Configure a variável de ambiente antes de iniciar o servidor — nunca use um segredo fixo em produção.',
+          );
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: '7d' },
+        };
+      },
     }),
   ],
   providers: [AuthService, JwtStrategy],

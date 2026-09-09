@@ -38,6 +38,15 @@ export class Usuario {
   @Column({ nullable: true })
   avatarUrl: string;
 
+  // Suporte à vinculação segura de um número de WhatsApp a uma conta já
+  // existente (criada via Google no site). Sem isto, uma mensagem de
+  // WhatsApp criava sempre uma conta nova e desconectada da conta real.
+  @Column({ nullable: true })
+  codigoVinculacaoWhatsapp: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  codigoVinculacaoExpiraEm: Date;
+
   @Column({
     type: 'enum',
     enum: MoedaPadrao,

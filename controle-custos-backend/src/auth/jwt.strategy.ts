@@ -15,10 +15,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     configService: ConfigService,
     private readonly usuariosService: UsuariosService,
   ) {
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET não está definido. Configure a variável de ambiente antes de iniciar o servidor.',
+      );
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET', 'fincontrol-default-secret-key-change-me'),
+      secretOrKey: secret,
     });
   }
 

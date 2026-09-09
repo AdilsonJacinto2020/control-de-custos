@@ -54,6 +54,21 @@ export class Transacao {
   @Column({ type: 'uuid', nullable: true })
   categoriaId: string;
 
+  // Liga uma receita à FonteDeRendimento que a gerou. Sem isto, a
+  // projeção de rendimento variável não conseguia distinguir "salário
+  // fixo" de "biscate variável" e misturava tudo na mesma média.
+  @Column({ type: 'uuid', nullable: true })
+  fonteRendimentoId: string;
+
+  // Suporte real à divisão de despesas conjuntas em espaços partilhados.
+  // Sem estes campos, `calcularAcertos` não tinha como saber quais
+  // transações eram de facto conjuntas nem quem as pagou.
+  @Column({ type: 'uuid', nullable: true })
+  espacoPartilhadoId: string;
+
+  @Column({ default: false })
+  divisaoConjunta: boolean;
+
   @Column()
   descricao: string;
 

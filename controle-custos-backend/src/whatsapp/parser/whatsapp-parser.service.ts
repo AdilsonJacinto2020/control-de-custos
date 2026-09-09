@@ -22,9 +22,17 @@ export class WhatsappParserService {
     let valor: number | undefined;
     let moeda = 'AOA';
 
-    // Regex para identificar número seguido de kz, kwanza, aoa, $, usd, eur
-    const valorRegex = /(\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)?/i;
-    const matchValor = texto.match(valorRegex);
+    // ANTES: pegava sempre no primeiro número da frase, mesmo que não
+    // tivesse indicador de moeda (ex: "cheguei às 15h, gastei 5000 kz"
+    // podia capturar "15" em vez de "5000"). Agora procura primeiro por
+    // um número que tenha explicitamente um indicador de moeda a seguir;
+    // só cai para "primeiro número da frase" se nenhum tiver indicador.
+    const valorComMoedaRegex = /(\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)/gi;
+    const valorSemMoedaRegex = /(\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)?/i;
+    const matchComMoeda = texto.match(valorComMoedaRegex);
+    const matchValor = matchComMoeda
+      ? matchComMoeda[0].match(/(\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)?/i)
+      : texto.match(valorSemMoedaRegex);
 
     if (matchValor) {
       const numStr = matchValor[1].replace(',', '.');

@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { Usuario } from '../usuarios/usuario.entity';
 
@@ -47,9 +48,15 @@ export class AuthService {
   }
 
   async guestLogin() {
+    // IMPORTANTE: cada sessão de convidado precisa da sua PRÓPRIA identidade.
+    // Antes, todos os "convidados" partilhavam o mesmo googleId fixo
+    // ('guest_demo_user'), o que fazia com que todos vissem e editassem
+    // os mesmos dados uns dos outros. Cada chamada gera agora um utilizador
+    // efémero isolado, identificável como convidado para eventual limpeza
+    // periódica (ex: apagar contas "guest_*" com mais de X dias).
+    const idUnico = randomUUID();
     const guestUser = await this.usuariosService.findOrCreateFromGoogle({
-      googleId: 'guest_demo_user',
-      email: 'guest@fincontrol.app',
+      googleId: `guest_${idUnico}`,
       nome: 'Convidado Demo',
     });
 

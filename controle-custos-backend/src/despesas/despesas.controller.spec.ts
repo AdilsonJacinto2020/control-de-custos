@@ -14,6 +14,8 @@ const mockUser: Usuario = {
   avatarUrl: '',
   moedaReferencia: null as any,
   modeloOrcamento: null as any,
+  codigoVinculacaoWhatsapp: null as any,
+  codigoVinculacaoExpiraEm: null as any,
   criadoEm: new Date(),
   atualizadoEm: new Date(),
 };

@@ -4,7 +4,6 @@ import { Repository } from 'typeorm';
 import { FonteDeRendimento, TipoFonteRendimento } from './fonte-rendimento.entity';
 import { CreateFonteRendimentoDto } from './dto/create-fonte-rendimento.dto';
 import { TransacoesService } from '../transacoes/transacoes.service';
-import { TipoTransacao } from '../transacoes/transacao.entity';
 
 export interface ProjecaoRendimento {
   fonte: FonteDeRendimento;
@@ -47,37 +46,54 @@ export class FontesRendimentoService {
 
   async calcularProjecaoRendimentos(usuarioId: string): Promise<ProjecaoRendimento[]> {
     const fontes = await this.findAll(usuarioId);
-    const transacoes = await this.transacoesService.findAll(usuarioId);
 
-    // Média móvel dos últimos 3 meses para receitas variáveis
-    const receitas = transacoes.filter((t) => t.tipo === TipoTransacao.RECEITA);
+    // ANTES: esta função somava TODAS as receitas do utilizador, de
+    // qualquer fonte, sem limite de tempo — se houvesse salário fixo e
+    // biscate variável, a "média do biscate" incluía o salário, e o
+    // intervalo nunca refletia especificamente aquela fonte. Agora cada
+    // fonte variável usa só as suas próprias receitas (via
+    // `fonteRendimentoId`), dentro de uma janela móvel de 3 meses.
+    const resultados: ProjecaoRendimento[] = [];
 
-    return fontes.map((f) => {
+    for (const f of fontes) {
       if (f.tipo === TipoFonteRendimento.FIXO) {
         const val = Number(f.valorFixo || 0);
-        return {
+        resultados.push({
           fonte: f,
           estimativaMin: val,
           estimativaMax: val,
           isIntervalo: false,
-        };
-      } else {
-        // Para fontes variáveis: projeta intervalo honesto baseado no histórico real
-        const valoresReceitas = receitas.map((r) => Number(r.valor));
-        const media = valoresReceitas.length > 0
-          ? valoresReceitas.reduce((a, b) => a + b, 0) / Math.max(1, valoresReceitas.length)
-          : 50000; // Valor de referência base se não houver histórico
-
-        const min = Math.round(media * 0.8);
-        const max = Math.round(media * 1.25);
-
-        return {
-          fonte: f,
-          estimativaMin: min,
-          estimativaMax: max,
-          isIntervalo: true,
-        };
+        });
+        continue;
       }
-    });
+
+      const receitasDaFonte = await this.transacoesService.findReceitasPorFonte(usuarioId, f.id, 3);
+
+      if (receitasDaFonte.length === 0) {
+        // Sem histórico ainda: não inventamos um número — devolvemos zero
+        // e sinalizamos explicitamente que não há dados suficientes, em
+        // vez de um valor de referência arbitrário (ex: 50.000) que dava
+        // uma falsa sensação de precisão.
+        resultados.push({
+          fonte: f,
+          estimativaMin: 0,
+          estimativaMax: 0,
+          isIntervalo: true,
+        });
+        continue;
+      }
+
+      const valores = receitasDaFonte.map((r) => Number(r.valor));
+      const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+
+      resultados.push({
+        fonte: f,
+        estimativaMin: Math.round(media * 0.8),
+        estimativaMax: Math.round(media * 1.25),
+        isIntervalo: true,
+      });
+    }
+
+    return resultados;
   }
 }

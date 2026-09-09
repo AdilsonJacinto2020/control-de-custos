@@ -29,16 +29,39 @@ export class WhatsappBotService {
   ) {}
 
   async processIncomingMessage(telefone: string, texto: string): Promise<string> {
+    // 0. Comando de vinculação a uma conta já existente do site — tem de
+    // ser tratado ANTES de localizar/criar utilizador por telefone, porque
+    // é exatamente isso que decide se a mensagem pertence a uma conta nova
+    // ou a uma conta que a pessoa já usa no site.
+    const rawInicial = texto.trim().toLowerCase();
+    const matchVinculacao = rawInicial.match(/^vincular\s+(\d{6})$/);
+    if (matchVinculacao) {
+      const codigo = matchVinculacao[1];
+      const usuarioVinculado = await this.usuariosService.vincularWhatsappPorCodigo(codigo, telefone);
+      const resposta = usuarioVinculado
+        ? '✅ O seu WhatsApp foi vinculado com sucesso à sua conta do site! Os lançamentos por aqui vão aparecer no seu dashboard.'
+        : '⚠️ Código inválido ou expirado. Gere um novo código em Definições > Vincular WhatsApp no site e tente de novo.';
+      await this.sendMetaWhatsappMessage(telefone, resposta);
+      return resposta;
+    }
+
     // 1. Localizar ou criar utilizador e conversa
     let user = await this.usuariosService.findByWhatsapp(telefone);
+    let contaERecemCriada = false;
     if (!user) {
-      // Criação rápida de usuário via WhatsApp
+      // IMPORTANTE: isto cria uma conta "só WhatsApp", desconectada de
+      // qualquer conta que a pessoa já tenha no site via Google. Isso é
+      // aceitável para quem começa a usar o produto pelo WhatsApp — mas
+      // é preciso avisar explicitamente, para quem já tem conta no site
+      // saber que precisa de vincular em vez de ficar com dados divididos
+      // em dois sítios sem se aperceber.
       user = await this.usuariosService.findOrCreateFromGoogle({
         googleId: `whatsapp_${telefone}`,
         nome: `Usuário ${telefone.slice(-4)}`,
       });
       user.telefoneWhatsapp = telefone;
       await this.usuariosService.updateTelefone(user.id, telefone);
+      contaERecemCriada = true;
     }
 
     let conversa = await this.conversaRepository.findOne({
@@ -61,7 +84,12 @@ export class WhatsappBotService {
       conteudoBruto: texto,
     });
 
-    const resposta = await this.handleState(conversa, user.id, texto, msgLog);
+    let resposta = await this.handleState(conversa, user.id, texto, msgLog);
+
+    if (contaERecemCriada) {
+      resposta +=
+        '\n\n_ℹ️ Já tem conta no site? Vá a Definições > Vincular WhatsApp para juntar os seus dados numa só conta, em vez de ficarem separados._';
+    }
 
     await this.mensagemRepository.save(msgLog);
 

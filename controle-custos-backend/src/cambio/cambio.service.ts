@@ -72,12 +72,19 @@ export class CambioService {
 
     const personalizadas = await this.taxaRepo.find({ where: { usuarioId } });
 
+    // NOTA: "taxaOficial" aqui vem de um agregador de mercado
+    // (open.er-api.com), não da taxa publicada pelo Banco Nacional de
+    // Angola. Identificamos a fonte explicitamente em cada registo para
+    // não sugerir ao utilizador que é a taxa oficial do BNA.
+    const fonteOficial = 'Mercado (open.er-api.com) — não é a taxa oficial do BNA';
+
     const taxasFormatadas = [
       {
         par: 'USD / AOA',
         origem: 'USD',
         destino: 'AOA',
         taxaOficial: this.taxasEmCache['USD_AOA'] || TAXAS_FALLBACK['USD_AOA'],
+        fonteTaxaOficial: fonteOficial,
         taxaPersonalizada:
           personalizadas.find((p) => p.moedaOrigem === 'USD' && p.moedaDestino === 'AOA')?.taxa || null,
         usarPersonalizada:
@@ -88,6 +95,7 @@ export class CambioService {
         origem: 'EUR',
         destino: 'AOA',
         taxaOficial: this.taxasEmCache['EUR_AOA'] || TAXAS_FALLBACK['EUR_AOA'],
+        fonteTaxaOficial: fonteOficial,
         taxaPersonalizada:
           personalizadas.find((p) => p.moedaOrigem === 'EUR' && p.moedaDestino === 'AOA')?.taxa || null,
         usarPersonalizada:
@@ -98,6 +106,7 @@ export class CambioService {
         origem: 'USD',
         destino: 'EUR',
         taxaOficial: this.taxasEmCache['USD_EUR'] || TAXAS_FALLBACK['USD_EUR'],
+        fonteTaxaOficial: fonteOficial,
         taxaPersonalizada:
           personalizadas.find((p) => p.moedaOrigem === 'USD' && p.moedaDestino === 'EUR')?.taxa || null,
         usarPersonalizada:
