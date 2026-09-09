@@ -8,7 +8,7 @@ import App from './App.tsx';
 
 const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-  '629082729112-sampleidplaceholder.apps.googleusercontent.com';
+  '100354238561-s2bnihf101ols7nk3ngi71g4j2dm8sm9.apps.googleusercontent.com';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
