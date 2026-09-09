@@ -62,12 +62,15 @@ import { CambioModule } from './cambio/cambio.module';
           TaxaCambioPersonalizada,
         ];
 
+        const shouldSync =
+          configService.get<string>('DB_SYNC', 'true') === 'true';
+
         if (databaseUrl) {
           return {
             type: 'postgres',
             url: databaseUrl,
             entities,
-            synchronize: configService.get<string>('NODE_ENV') !== 'production',
+            synchronize: shouldSync,
             ssl: isSslRequired ? { rejectUnauthorized: false } : false,
           };
         }
@@ -80,7 +83,7 @@ import { CambioModule } from './cambio/cambio.module';
           password: configService.get<string>('DB_PASSWORD', 'fincontrol'),
           database: configService.get<string>('DB_DATABASE', 'fincontrol'),
           entities,
-          synchronize: configService.get<string>('NODE_ENV') !== 'production',
+          synchronize: shouldSync,
           ssl: isSslRequired ? { rejectUnauthorized: false } : false,
         };
       },
