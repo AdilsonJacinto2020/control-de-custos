@@ -208,7 +208,7 @@ export function AppLayout() {
 
         {/* Footer do Utilizador na Sidebar */}
         <div className="sidebar-bottom">
-          {user ? (
+          {user && !user.isGuest ? (
             <div className="user-sidebar-card">
               {user.picture ? (
                 <img src={user.picture} alt={user.name} className="user-avatar-img" />
@@ -228,14 +228,21 @@ export function AppLayout() {
               </button>
             </div>
           ) : (
-            <div className="sidebar-google-login">
-              <GoogleLogin
-                onSuccess={(res) => {
-                  if (res.credential) handleGoogleSuccess(res.credential);
-                }}
-                shape="pill"
-                size="medium"
-              />
+            <div className="flex flex-col gap-2 w-full">
+              <div className="sidebar-google-login">
+                <GoogleLogin
+                  onSuccess={(res) => {
+                    if (res.credential) handleGoogleSuccess(res.credential);
+                  }}
+                  shape="pill"
+                  size="medium"
+                />
+              </div>
+              {user?.isGuest && (
+                <div className="text-[10px] text-center text-muted">
+                  Modo Convidado • Faça login para salvar
+                </div>
+              )}
             </div>
           )}
 
@@ -466,7 +473,7 @@ export function AppLayout() {
 
                 {/* Utilizador & Logout no Drawer */}
                 <div className="drawer-footer-user">
-                  {user ? (
+                  {user && !user.isGuest ? (
                     <div className="flex items-center justify-between w-full">
                       <div className="flex items-center gap-3">
                         {user.picture ? (
@@ -511,7 +518,7 @@ export function AppLayout() {
                       </button>
                     </div>
                   ) : (
-                    <div className="w-full flex justify-center">
+                    <div className="w-full flex flex-col items-center gap-2">
                       <GoogleLogin
                         onSuccess={(res) => {
                           if (res.credential) handleGoogleSuccess(res.credential);
@@ -520,6 +527,7 @@ export function AppLayout() {
                         shape="pill"
                         size="medium"
                       />
+                      <span className="text-[10px] text-muted">Sessão de Convidado</span>
                     </div>
                   )}
                 </div>

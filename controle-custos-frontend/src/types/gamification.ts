@@ -3,6 +3,7 @@ export interface UserProfile {
   name: string;
   email: string;
   picture?: string;
+  isGuest?: boolean;
   streak: number;
   lastCheckinDate?: string;
   bestStreak: number;
