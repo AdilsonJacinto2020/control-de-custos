@@ -48,26 +48,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const savedUser = localStorage.getItem('fincontrol_user');
       if (!token || !savedUser) {
         await loginGuest();
+      } else if (user) {
+        verificarStreakValido(user);
       }
       setIsAuthReady(true);
     }
     initAuth();
   }, []);
 
+  const verificarStreakValido = (currentUser: UserProfile) => {
+    if (!currentUser.lastCheckinDate) return;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const [ano, mes, dia] = currentUser.lastCheckinDate.split('-').map(Number);
+    const dataUltimoCheckin = new Date(ano, mes - 1, dia);
+    dataUltimoCheckin.setHours(0, 0, 0, 0);
+
+    const diffDias = Math.floor((hoje.getTime() - dataUltimoCheckin.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Se passou mais de 1 dia (ex: 2 dias ou mais), o streak quebrou e reseta para 0
+    if (diffDias > 1 && currentUser.streak > 0) {
+      const updated = {
+        ...currentUser,
+        streak: 0,
+      };
+      setUser(updated);
+      localStorage.setItem('fincontrol_user', JSON.stringify(updated));
+    }
+  };
+
   const recordActivity = () => {
     if (!user) return;
-    const today = new Date().toISOString().slice(0, 10);
-    if (user.lastCheckinDate === today) return;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const hojeStr = new Date().toISOString().slice(0, 10);
 
-    const newStreak = user.streak + 1;
-    const bestStreak = Math.max(newStreak, user.bestStreak);
+    // Se já fez checkin hoje, mantém
+    if (user.lastCheckinDate === hojeStr) return;
 
-    setUser({
+    let newStreak = 1;
+
+    if (user.lastCheckinDate) {
+      const [ano, mes, dia] = user.lastCheckinDate.split('-').map(Number);
+      const dataUltimo = new Date(ano, mes - 1, dia);
+      dataUltimo.setHours(0, 0, 0, 0);
+
+      const diffDias = Math.floor((hoje.getTime() - dataUltimo.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDias === 1) {
+        // Dia consecutivo perfeito
+        newStreak = user.streak + 1;
+      } else if (diffDias === 0) {
+        // Mesmo dia
+        newStreak = user.streak;
+      } else {
+        // Passaram 2 ou mais dias sem registro -> reinicia em 1
+        newStreak = 1;
+      }
+    }
+
+    const bestStreak = Math.max(newStreak, user.bestStreak || 0);
+
+    const updatedUser: UserProfile = {
       ...user,
       streak: newStreak,
       bestStreak,
-      lastCheckinDate: today,
-    });
+      lastCheckinDate: hojeStr,
+    };
+
+    setUser(updatedUser);
+    localStorage.setItem('fincontrol_user', JSON.stringify(updatedUser));
   };
 
   const checkInZeroExpense = async () => {
@@ -81,15 +132,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response && response.accessToken) {
         localStorage.setItem('fincontrol_token', response.accessToken);
 
+        const hojeStr = new Date().toISOString().slice(0, 10);
+        let newStreak = (user?.streak || 0);
+
+        if (!user?.lastCheckinDate) {
+          newStreak = 1;
+        } else if (user.lastCheckinDate !== hojeStr) {
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
+          const [ano, mes, dia] = user.lastCheckinDate.split('-').map(Number);
+          const dataUltimo = new Date(ano, mes - 1, dia);
+          dataUltimo.setHours(0, 0, 0, 0);
+          const diffDias = Math.floor((hoje.getTime() - dataUltimo.getTime()) / (1000 * 60 * 60 * 24));
+          newStreak = diffDias === 1 ? (user.streak + 1) : 1;
+        }
+
         const loggedUser: UserProfile = {
           id: response.user.id,
           name: formatUserName(response.user.nome || 'Usuário Google'),
           email: response.user.email,
           picture: response.user.avatarUrl,
           isGuest: false,
-          streak: (user?.streak || 0) + 1,
-          bestStreak: Math.max(user?.bestStreak || 0, (user?.streak || 0) + 1),
-          lastCheckinDate: new Date().toISOString().slice(0, 10),
+          streak: newStreak,
+          bestStreak: Math.max(user?.bestStreak || 0, newStreak),
+          lastCheckinDate: hojeStr,
         };
 
         setUser(loggedUser);
@@ -108,6 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response && response.accessToken) {
         localStorage.setItem('fincontrol_token', response.accessToken);
 
+        const hojeStr = new Date().toISOString().slice(0, 10);
         const guestUser: UserProfile = {
           id: response.user.id,
           name: formatUserName(response.user.nome || 'Convidado Demo'),
@@ -115,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isGuest: true,
           streak: 1,
           bestStreak: 1,
-          lastCheckinDate: new Date().toISOString().slice(0, 10),
+          lastCheckinDate: hojeStr,
         };
 
         setUser(guestUser);
@@ -126,6 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Erro ao autenticar como convidado:', e);
     }
   };
+
 
   const logout = () => {
     setUser(null);

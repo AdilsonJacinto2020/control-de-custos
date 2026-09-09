@@ -22,31 +22,45 @@ export class WhatsappParserService {
     let valor: number | undefined;
     let moeda = 'AOA';
 
-    // ANTES: pegava sempre no primeiro número da frase, mesmo que não
-    // tivesse indicador de moeda (ex: "cheguei às 15h, gastei 5000 kz"
-    // podia capturar "15" em vez de "5000"). Agora procura primeiro por
-    // um número que tenha explicitamente um indicador de moeda a seguir;
-    // só cai para "primeiro número da frase" se nenhum tiver indicador.
-    const valorComMoedaRegex = /(\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)/gi;
-    const valorSemMoedaRegex = /(\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)?/i;
-    const matchComMoeda = texto.match(valorComMoedaRegex);
-    const matchValor = matchComMoeda
-      ? matchComMoeda[0].match(/(\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)?/i)
-      : texto.match(valorSemMoedaRegex);
+    // Suporta formatos:
+    // - "almoco 3500 kz", "gasosa 2.500 aoa", "táxi 2k", "salário 150.000", "jantar 45$"
+    const matchK = raw.match(/(\d+(?:[.,]\d+)?)\s*k\b/i);
+    const valorComMoedaRegex = /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)\b/gi;
+    const numeroGeralRegex = /\b(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\b/;
 
-    if (matchValor) {
-      const numStr = matchValor[1].replace(',', '.');
-      valor = parseFloat(numStr);
+    if (matchK) {
+      const numBase = parseFloat(matchK[1].replace(',', '.'));
+      valor = numBase * 1000;
+      moeda = 'AOA';
+    } else {
+      const matchComMoeda = texto.match(valorComMoedaRegex);
+      const matchValor = matchComMoeda
+        ? matchComMoeda[0].match(/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)?/i)
+        : texto.match(numeroGeralRegex);
 
-      const indicMoeda = (matchValor[2] || '').toLowerCase();
-      if (indicMoeda.includes('usd') || indicMoeda === '$') {
-        moeda = 'USD';
-      } else if (indicMoeda.includes('eur') || indicMoeda === '€') {
-        moeda = 'EUR';
-      } else {
-        moeda = 'AOA';
+      if (matchValor) {
+        let numStr = matchValor[1];
+        if (numStr.includes('.') && numStr.includes(',')) {
+          numStr = numStr.replace(/\./g, '').replace(',', '.');
+        } else if (numStr.includes('.') && (numStr.match(/\./g) || []).length === 1 && numStr.split('.')[1].length === 3) {
+          numStr = numStr.replace('.', '');
+        } else {
+          numStr = numStr.replace(',', '.');
+        }
+
+        valor = parseFloat(numStr);
+
+        const indicMoeda = (matchValor[2] || '').toLowerCase();
+        if (indicMoeda.includes('usd') || indicMoeda === '$') {
+          moeda = 'USD';
+        } else if (indicMoeda.includes('eur') || indicMoeda === '€') {
+          moeda = 'EUR';
+        } else {
+          moeda = 'AOA';
+        }
       }
     }
+
 
     // 2. Direção (receita vs despesa)
     const triggerReceita = ['recebi', 'ganhei', 'entrou', 'recebimento', 'salario', 'salário'];
