@@ -9,7 +9,8 @@ import { EventosPage } from './pages/EventosPage';
 import { EspacosPage } from './pages/EspacosPage';
 import { CambioPage } from './pages/CambioPage';
 import { AboutPage } from './pages/AboutPage';
-import { PrivacyPage } from './pages/PrivacyPage';
+import { PrivacidadePage } from './pages/PrivacidadePage';
+import { TermosPage } from './pages/TermosPage';
 import { transacoesApi, contasApi, categoriasApi, fontesRendimentoApi, espacosPartilhadosApi } from './api/financas';
 
 const mesAtualStr = () => String(new Date().getMonth() + 1).padStart(2, '0');
@@ -84,12 +85,28 @@ export const router = createBrowserRouter([
         element: <CambioPage />,
       },
       {
+        path: 'sobre',
+        element: <AboutPage />,
+      },
+      {
         path: 'about',
         element: <AboutPage />,
       },
       {
+        path: 'privacidade',
+        element: <PrivacidadePage />,
+      },
+      {
         path: 'privacy',
-        element: <PrivacyPage />,
+        element: <PrivacidadePage />,
+      },
+      {
+        path: 'termos',
+        element: <TermosPage />,
+      },
+      {
+        path: 'terms',
+        element: <TermosPage />,
       },
     ],
   },

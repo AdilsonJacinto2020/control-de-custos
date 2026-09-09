@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Info,
   MessageSquare,
+  FileText,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -95,13 +96,19 @@ const navItems: NavItem[] = [
   {
     label: 'Sobre o Sistema',
     icon: Info,
-    path: '/about',
+    path: '/sobre',
     categoria: 'colaboracao',
   },
   {
-    label: 'Privacidade & Dados',
+    label: 'Privacidade de Dados',
     icon: ShieldCheck,
-    path: '/privacy',
+    path: '/privacidade',
+    categoria: 'colaboracao',
+  },
+  {
+    label: 'Termos de Serviço',
+    icon: FileText,
+    path: '/termos',
     categoria: 'colaboracao',
   },
 ];
@@ -222,13 +229,17 @@ export function AppLayout() {
           )}
 
           <div className="sidebar-credits">
-            <div className="flex items-center gap-2 justify-center">
-              <Link to="/about" className="!no-underline hover:text-brand transition-colors text-muted text-[11px]">
+            <div className="flex items-center gap-1.5 justify-center flex-wrap">
+              <Link to="/sobre" className="!no-underline hover:text-brand transition-colors text-muted text-[11px]">
                 Sobre
               </Link>
               <span className="text-muted text-[10px]">•</span>
-              <Link to="/privacy" className="!no-underline hover:text-brand transition-colors text-muted text-[11px]">
+              <Link to="/privacidade" className="!no-underline hover:text-brand transition-colors text-muted text-[11px]">
                 Privacidade
+              </Link>
+              <span className="text-muted text-[10px]">•</span>
+              <Link to="/termos" className="!no-underline hover:text-brand transition-colors text-muted text-[11px]">
+                Termos
               </Link>
             </div>
             <a

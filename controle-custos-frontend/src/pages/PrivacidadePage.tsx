@@ -1,9 +1,9 @@
 import { ShieldCheck, Lock, Eye, Server, RefreshCw, UserCheck, Mail, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { FinControlLogo } from '../components/FinControlLogo';
-import './PrivacyPage.css';
+import './PrivacidadePage.css';
 
-export function PrivacyPage() {
+export function PrivacidadePage() {
   const dataAtualizacao = '9 de Setembro de 2026';
 
   return (
