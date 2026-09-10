@@ -70,23 +70,67 @@ server.use((req, res, next) => {
   next();
 });
 
-let lastWebhooksReceived: any[] = [];
 let isInitialized = false;
+
+// Helper: gravar/ler webhooks na BD (funciona em serverless — sem memória partilhada)
+async function saveWebhookLog(payload: any, headers: any) {
+  try {
+    const { Client } = await import('pg');
+    const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    await client.connect();
+    // Criar tabela se não existir
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS webhook_debug_logs (
+        id SERIAL PRIMARY KEY,
+        received_at TIMESTAMPTZ DEFAULT NOW(),
+        body JSONB,
+        headers JSONB
+      )
+    `);
+    await client.query(
+      `INSERT INTO webhook_debug_logs (body, headers) VALUES ($1, $2)`,
+      [JSON.stringify(payload), JSON.stringify(headers)]
+    );
+    // Manter apenas os últimos 20 registos
+    await client.query(`
+      DELETE FROM webhook_debug_logs
+      WHERE id NOT IN (SELECT id FROM webhook_debug_logs ORDER BY received_at DESC LIMIT 20)
+    `);
+    await client.end();
+  } catch (e) {
+    // Ignorar erros de log — não afecta o processamento principal
+    console.error('[WEBHOOK_LOG] Erro ao gravar log:', (e as any)?.message);
+  }
+}
+
+async function readWebhookLogs() {
+  try {
+    const { Client } = await import('pg');
+    const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    await client.connect();
+    const result = await client.query(`
+      SELECT received_at as timestamp, body, headers
+      FROM webhook_debug_logs
+      ORDER BY received_at DESC
+      LIMIT 20
+    `);
+    await client.end();
+    return result.rows.map(r => ({ timestamp: r.timestamp, body: r.body, headers: r.headers }));
+  } catch (e) {
+    return [];
+  }
+}
 
 // Handler para Vercel Serverless Function
 export default async function handler(req: any, res: any) {
-  // Capture webhook requests directly at Vercel edge
+  // Capture webhook requests directly at Vercel edge — grava na BD para persistir entre invocações
   if (req.method === 'POST' && (req.url === '/webhooks/whatsapp' || req.url?.startsWith('/webhooks/whatsapp'))) {
     const rawPayload = req.body;
-    lastWebhooksReceived.unshift({
-      timestamp: new Date().toISOString(),
-      body: rawPayload,
-      headers: {
-        'content-type': req.headers['content-type'],
-        'user-agent': req.headers['user-agent'],
-      },
+    // Fire-and-forget: não bloqueia o processamento principal
+    saveWebhookLog(rawPayload, {
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent'],
     });
-    if (lastWebhooksReceived.length > 10) lastWebhooksReceived.pop();
   }
   const origin = req.headers?.origin;
   const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -126,15 +170,17 @@ export default async function handler(req: any, res: any) {
 
   const reqUrl = req.url || '';
 
-  // Endpoint de diagnóstico para inspecionar webhooks recebidos em tempo real
+  // Endpoint de diagnóstico para inspecionar webhooks recebidos em tempo real (lê da BD)
   if (reqUrl.startsWith('/api/live-webhooks') || reqUrl.startsWith('/live-webhooks')) {
     const debugKey = process.env.DEBUG_KEY;
     if (!debugKey || req.query?.key !== debugKey) {
       return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
     }
+    const logs = await readWebhookLogs();
     return res.status(200).json({
-      total: lastWebhooksReceived.length,
-      logs: lastWebhooksReceived,
+      total: logs.length,
+      logs,
+      note: 'Dados persistidos na BD — funciona entre invocações serverless',
     });
   }
   if (reqUrl.startsWith('/api/debug-env') || reqUrl.startsWith('/debug-env')) {
