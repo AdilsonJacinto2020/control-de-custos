@@ -31,54 +31,71 @@ export class WhatsappWebhookController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async handleIncomingMessage(@Body() body: any) {
-    // Suporta payload direto simples (ex: { from: "+244923...", text: "Almoco 3500 kz" })
-    // ou payload padrão completo da Cloud API da Meta (WhatsApp Business Cloud API)
-    let from: string | undefined = body.from;
-    let text: string | undefined = body.text;
+    console.log('[WHATSAPP WEBHOOK RECEIVED]:', JSON.stringify(body));
 
-    // 1. Suporte para Evolution API v1 e v2 (Webhook event: MESSAGES_UPSERT ou SEND_MESSAGE)
-    if (body?.event === 'messages.upsert' || body?.event === 'MESSAGES_UPSERT' || body?.data?.message) {
-      const msgData = body?.data;
-      const key = msgData?.key;
-      // Ignora mensagens enviadas pelo próprio bot
-      if (key?.fromMe) {
-        return { status: 'ignored_own_message' };
-      }
+    try {
+      let from: string | undefined = body.from;
+      let text: string | undefined = body.text;
 
-      from = key?.remoteJid?.replace('@s.whatsapp.net', '') || msgData?.sender;
-      text =
-        msgData?.message?.conversation ||
-        msgData?.message?.extendedTextMessage?.text ||
-        msgData?.message?.buttonsResponseMessage?.selectedButtonId ||
-        msgData?.message?.listResponseMessage?.title;
-    }
+      // 1. Suporte para Evolution API v1 e v2
+      if (body?.event === 'messages.upsert' || body?.event === 'MESSAGES_UPSERT' || body?.data?.message) {
+        const msgData = body?.data;
+        const key = msgData?.key;
+        if (key?.fromMe) {
+          return { status: 'ignored_own_message' };
+        }
 
-    // 2. Suporte para Cloud API da Meta (WhatsApp Business Cloud API)
-    if (!text && body?.entry && body?.entry[0]?.changes && body?.entry[0]?.changes[0]?.value?.messages) {
-      const msg = body.entry[0].changes[0].value.messages[0];
-      from = msg.from;
-      if (msg.type === 'text' && msg.text?.body) {
-        text = msg.text.body;
-      } else if (msg.type === 'button' && msg.button?.text) {
-        text = msg.button.text;
-      } else if (msg.type === 'interactive') {
+        from = key?.remoteJid?.replace('@s.whatsapp.net', '') || msgData?.sender;
         text =
-          msg.interactive?.button_reply?.title ||
-          msg.interactive?.list_reply?.title ||
-          msg.interactive?.button_reply?.id;
+          msgData?.message?.conversation ||
+          msgData?.message?.extendedTextMessage?.text ||
+          msgData?.message?.buttonsResponseMessage?.selectedButtonId ||
+          msgData?.message?.listResponseMessage?.title;
       }
+
+      // 2. Suporte para Cloud API da Meta (WhatsApp Business Cloud API)
+      if (!text && body?.entry && Array.isArray(body.entry)) {
+        for (const entryItem of body.entry) {
+          if (entryItem?.changes && Array.isArray(entryItem.changes)) {
+            for (const change of entryItem.changes) {
+              const messages = change?.value?.messages;
+              if (messages && Array.isArray(messages) && messages.length > 0) {
+                const msg = messages[0];
+                from = msg.from;
+                if (msg.type === 'text' && msg.text?.body) {
+                  text = msg.text.body;
+                } else if (msg.type === 'button' && msg.button?.text) {
+                  text = msg.button.text;
+                } else if (msg.type === 'interactive') {
+                  text =
+                    msg.interactive?.button_reply?.title ||
+                    msg.interactive?.list_reply?.title ||
+                    msg.interactive?.button_reply?.id;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      console.log(`[WHATSAPP PARSED]: from="${from}", text="${text}"`);
+
+      if (!from || !text) {
+        return { status: 'ignored_or_no_text', received: Boolean(body) };
+      }
+
+      const reply = await this.whatsappBotService.processIncomingMessage(from, text);
+      return {
+        status: 'processed',
+        reply,
+      };
+    } catch (err: any) {
+      console.error('[WHATSAPP WEBHOOK ERROR]:', err?.message, err?.stack);
+      return {
+        status: 'error',
+        error: err?.message,
+      };
     }
-
-
-    if (!from || !text) {
-      return { status: 'ignored_or_no_text' };
-    }
-
-    const reply = await this.whatsappBotService.processIncomingMessage(from, text);
-    return {
-      status: 'processed',
-      reply,
-    };
   }
 
 }
