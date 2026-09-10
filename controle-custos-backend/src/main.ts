@@ -9,19 +9,18 @@ const server: Express = express();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
   const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'https://fincontrol.app'];
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : [
+        'https://control-de-custos-v9ju.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:3000',
+      ];
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Permite requisições sem origin ou em domínios autorizados (incluindo vercel.app e localhost)
-      if (
-        !origin ||
-        allowedOrigins.indexOf(origin) !== -1 ||
-        origin.endsWith('.vercel.app') ||
-        origin.includes('localhost') ||
-        process.env.NODE_ENV !== 'production'
-      ) {
+      // Permite requisições sem origin (como mobile apps, curl ou webhooks server-to-server) ou em origens autorizadas
+      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
         callback(null, true);
       } else {
         callback(new Error('Origem não permitida pelo CORS'));
@@ -49,12 +48,16 @@ async function bootstrap() {
 // CORS middleware explícito a nível do Express antes de qualquer processamento
 server.use((req, res, next) => {
   const origin = req.headers.origin as string;
-  if (
-    !origin ||
-    origin.endsWith('.vercel.app') ||
-    origin.includes('localhost') ||
-    origin.includes('fincontrol')
-  ) {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : [
+        'https://control-de-custos-v9ju.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:3000',
+      ];
+
+  if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
@@ -71,14 +74,17 @@ let isInitialized = false;
 
 // Handler para Vercel Serverless Function
 export default async function handler(req: any, res: any) {
-  // CORS fallback direto no handler
   const origin = req.headers?.origin;
-  if (
-    !origin ||
-    origin.endsWith('.vercel.app') ||
-    origin.includes('localhost') ||
-    origin.includes('fincontrol')
-  ) {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : [
+        'https://control-de-custos-v9ju.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:3000',
+      ];
+
+  if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
@@ -93,9 +99,9 @@ export default async function handler(req: any, res: any) {
   const mode = req.query?.['hub.mode'];
   const token = req.query?.['hub.verify_token'];
   const challenge = req.query?.['hub.challenge'];
-  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || 'fincontrol_token';
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
-  if (mode === 'subscribe' && token === verifyToken && challenge) {
+  if (verifyToken && mode === 'subscribe' && token === verifyToken && challenge) {
     res.setHeader('Content-Type', 'text/plain');
     return res.status(200).send(challenge);
   }
@@ -104,7 +110,14 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ status: 'ok', serverTime: new Date().toISOString() });
   }
 
-  if (req.url === '/api/debug-env' || req.url === '/debug-env') {
+  // Endpoints de diagnóstico protegidos por DEBUG_KEY
+  const reqUrl = req.url || '';
+  if (reqUrl.startsWith('/api/debug-env') || reqUrl.startsWith('/debug-env')) {
+    const debugKey = process.env.DEBUG_KEY;
+    if (!debugKey || req.query?.key !== debugKey) {
+      return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
+    }
+
     return res.status(200).json({
       hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
       hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
@@ -114,12 +127,18 @@ export default async function handler(req: any, res: any) {
       hasWhatsappAccessToken: Boolean(process.env.WHATSAPP_ACCESS_TOKEN),
       whatsappAccessTokenLength: process.env.WHATSAPP_ACCESS_TOKEN ? process.env.WHATSAPP_ACCESS_TOKEN.length : 0,
       hasWhatsappVerifyToken: Boolean(process.env.WHATSAPP_VERIFY_TOKEN),
+      hasEvolutionApiUrl: Boolean(process.env.EVOLUTION_API_URL),
+      hasEvolutionApiKey: Boolean(process.env.EVOLUTION_API_KEY),
       nodeEnv: process.env.NODE_ENV || 'undefined',
     });
   }
 
+  if (reqUrl.startsWith('/api/test-db') || reqUrl.startsWith('/test-db')) {
+    const debugKey = process.env.DEBUG_KEY;
+    if (!debugKey || req.query?.key !== debugKey) {
+      return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
+    }
 
-  if (req.url === '/api/test-db' || req.url === '/test-db') {
     const { Client } = await import('pg');
     const client = new Client({
       connectionString: process.env.DATABASE_URL,
