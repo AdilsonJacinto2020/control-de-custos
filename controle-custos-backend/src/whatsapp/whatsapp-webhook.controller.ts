@@ -52,7 +52,14 @@ export class WhatsappWebhookController {
         }
 
         const remoteJid = key?.remoteJid || msgData?.remoteJid || msgData?.sender || body?.sender;
-        from = remoteJid ? String(remoteJid).replace('@s.whatsapp.net', '').replace(/:\d+/, '') : undefined;
+        let cleanedFrom = remoteJid ? String(remoteJid).replace('@s.whatsapp.net', '').replace('@lid', '').replace(/:\d+/, '') : undefined;
+        // Se remoteJid for LID, tenta pegar do senderPn ou participant se disponível
+        if (msgData?.senderPn) {
+          cleanedFrom = String(msgData.senderPn).replace(/[^0-9]/g, '');
+        } else if (msgData?.participant && !msgData.participant.includes('@lid')) {
+          cleanedFrom = String(msgData.participant).replace('@s.whatsapp.net', '').replace(/:\d+/, '');
+        }
+        from = cleanedFrom;
         
         const m = msgData?.message || body?.message;
         text =
