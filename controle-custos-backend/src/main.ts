@@ -70,10 +70,24 @@ server.use((req, res, next) => {
   next();
 });
 
+let lastWebhooksReceived: any[] = [];
 let isInitialized = false;
 
 // Handler para Vercel Serverless Function
 export default async function handler(req: any, res: any) {
+  // Capture webhook requests directly at Vercel edge
+  if (req.method === 'POST' && (req.url === '/webhooks/whatsapp' || req.url?.startsWith('/webhooks/whatsapp'))) {
+    const rawPayload = req.body;
+    lastWebhooksReceived.unshift({
+      timestamp: new Date().toISOString(),
+      body: rawPayload,
+      headers: {
+        'content-type': req.headers['content-type'],
+        'user-agent': req.headers['user-agent'],
+      },
+    });
+    if (lastWebhooksReceived.length > 10) lastWebhooksReceived.pop();
+  }
   const origin = req.headers?.origin;
   const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
@@ -110,8 +124,19 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ status: 'ok', serverTime: new Date().toISOString() });
   }
 
-  // Endpoints de diagnóstico protegidos por DEBUG_KEY
   const reqUrl = req.url || '';
+
+  // Endpoint de diagnóstico para inspecionar webhooks recebidos em tempo real
+  if (reqUrl.startsWith('/api/live-webhooks') || reqUrl.startsWith('/live-webhooks')) {
+    const debugKey = process.env.DEBUG_KEY;
+    if (!debugKey || req.query?.key !== debugKey) {
+      return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
+    }
+    return res.status(200).json({
+      total: lastWebhooksReceived.length,
+      logs: lastWebhooksReceived,
+    });
+  }
   if (reqUrl.startsWith('/api/debug-env') || reqUrl.startsWith('/debug-env')) {
     const debugKey = process.env.DEBUG_KEY;
     if (!debugKey || req.query?.key !== debugKey) {
