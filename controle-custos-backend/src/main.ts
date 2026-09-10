@@ -322,6 +322,147 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // Endpoint de polling activo da Evolution API — contorna bug MESSAGES_UPSERT com LID
+  // Chamado pelo cron job a cada minuto: GET /api/poll-messages?key=DEBUG_KEY
+  if (reqUrl.startsWith('/api/poll-messages') || reqUrl.startsWith('/poll-messages')) {
+    const debugKey = process.env.DEBUG_KEY;
+    if (!debugKey || req.query?.key !== debugKey) {
+      return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
+    }
+
+    try {
+      const evolutionUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
+      const evolutionApiKey = process.env.EVOLUTION_API_KEY || '';
+      const evolutionInstance = process.env.EVOLUTION_INSTANCE_NAME || 'fincontrol';
+
+      if (!evolutionUrl || !evolutionApiKey) {
+        return res.status(200).json({ status: 'skipped', reason: 'EVOLUTION_API_URL ou EVOLUTION_API_KEY em falta' });
+      }
+
+      // Ler último timestamp processado da BD
+      const { Client } = await import('pg');
+      const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      await client.connect();
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_poller_state (
+          key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      const stateRow = await client.query(
+        `SELECT value FROM whatsapp_poller_state WHERE key = 'last_processed_message_at'`
+      );
+      const lastProcessedAt = stateRow.rows.length > 0 ? new Date(stateRow.rows[0].value) : null;
+      const sinceDate = lastProcessedAt
+        ? new Date(lastProcessedAt.getTime() - 5000)
+        : new Date(Date.now() - 2 * 60 * 1000);
+
+      // Buscar mensagens novas na Evolution API
+      const evResp = await fetch(`${evolutionUrl}/chat/findMessages/${evolutionInstance}`, {
+        method: 'POST',
+        headers: { 'apikey': evolutionApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          where: {
+            key: { fromMe: false },
+            messageTimestamp: { gte: Math.floor(sinceDate.getTime() / 1000) },
+          },
+          limit: 20,
+        }),
+      });
+
+      const evData = await evResp.json().catch(() => ({}));
+      const mensagens: any[] = (evData?.messages?.records || evData?.records || [])
+        .sort((a: any, b: any) => (a.messageTimestamp || 0) - (b.messageTimestamp || 0));
+
+      console.log(`[POLL] Encontradas ${mensagens.length} mensagens desde ${sinceDate.toISOString()}`);
+
+      let processed = 0;
+      let skipped = 0;
+      let newestTimestamp: Date | null = null;
+      const log: any[] = [];
+
+      for (const msg of mensagens) {
+        const msgTimestamp = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000) : null;
+        if (lastProcessedAt && msgTimestamp && msgTimestamp <= lastProcessedAt) { skipped++; continue; }
+
+        const key = msg.key;
+        let telefone: string | null = null;
+        if (key?.remoteJidAlt) {
+          telefone = String(key.remoteJidAlt).replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
+        } else if (key?.remoteJid && !key.remoteJid.includes('@lid')) {
+          telefone = String(key.remoteJid).replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
+        }
+        const message = msg.message;
+        const texto: string | null = message?.conversation || message?.extendedTextMessage?.text || null;
+
+        const logEntry = { id: msg.id, tel: telefone, txt: texto, ts: msgTimestamp?.toISOString() };
+        log.push(logEntry);
+        console.log('[POLL] Mensagem:', JSON.stringify(logEntry));
+
+        if (!telefone || !texto) { skipped++; continue; }
+
+        // Injectar a mensagem no webhook da própria Vercel para reutilizar toda a lógica do bot
+        const webhookPayload = {
+          event: 'messages.upsert',
+          instance: evolutionInstance,
+          data: { key: msg.key, message: msg.message, pushName: msg.pushName },
+        };
+
+        try {
+          // Processar internamente através do NestJS (inicializa se necessário)
+          if (!isInitialized) { await bootstrap(); isInitialized = true; }
+
+          // Simular o request ao handler NestJS directamente
+          await new Promise<void>((resolve, reject) => {
+            const fakeReq = {
+              method: 'POST',
+              url: '/webhooks/whatsapp',
+              body: webhookPayload,
+              headers: { 'content-type': 'application/json', origin: undefined },
+            };
+            const fakeRes = {
+              status: () => fakeRes,
+              json: () => { resolve(); return fakeRes; },
+              send: () => { resolve(); return fakeRes; },
+              setHeader: () => fakeRes,
+              end: () => { resolve(); return fakeRes; },
+            };
+            server(fakeReq as any, fakeRes as any).catch(reject);
+            // Timeout de segurança
+            setTimeout(resolve, 8000);
+          });
+          processed++;
+          if (!newestTimestamp || (msgTimestamp && msgTimestamp > newestTimestamp)) {
+            newestTimestamp = msgTimestamp;
+          }
+        } catch (err: any) {
+          console.error('[POLL] Erro ao processar:', err?.message);
+        }
+      }
+
+      // Guardar novo timestamp
+      if (newestTimestamp) {
+        await client.query(`
+          INSERT INTO whatsapp_poller_state (key, value, updated_at) VALUES ('last_processed_message_at', $1, NOW())
+          ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
+        `, [newestTimestamp.toISOString()]);
+      }
+      await client.end().catch(() => {});
+
+      return res.status(200).json({
+        status: 'ok',
+        since: sinceDate.toISOString(),
+        found: mensagens.length,
+        processed,
+        skipped,
+        log,
+        polledAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error('[POLL] Erro geral:', err?.message);
+      return res.status(500).json({ status: 'error', error: err?.message });
+    }
+  }
+
   // Endpoint de teste de envio direto via Meta Cloud API para diagnóstico
   if (reqUrl.startsWith('/api/test-whatsapp') || reqUrl.startsWith('/test-whatsapp')) {
     const debugKey = process.env.DEBUG_KEY;
