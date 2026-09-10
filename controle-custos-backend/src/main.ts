@@ -158,6 +158,51 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // Endpoint de teste de envio direto via Meta Cloud API para diagnóstico
+  if (reqUrl.startsWith('/api/test-whatsapp') || reqUrl.startsWith('/test-whatsapp')) {
+    const debugKey = process.env.DEBUG_KEY;
+    if (!debugKey || req.query?.key !== debugKey) {
+      return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
+    }
+
+    const to = (req.query?.to as string || '244947501108').replace(/[^0-9]/g, '');
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+
+    if (!phoneNumberId || !accessToken) {
+      return res.status(400).json({ error: 'Credenciais ausentes', phoneNumberId: Boolean(phoneNumberId), accessToken: Boolean(accessToken) });
+    }
+
+    try {
+      const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
+      const metaResponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { body: '🤖 Teste direto do FinControl WhatsApp Bot! Se você recebeu isso, a conexão com a Meta está 100% ativa.' },
+        }),
+      });
+
+      const responseBody = await metaResponse.json().catch(() => null);
+      return res.status(metaResponse.status).json({
+        httpStatus: metaResponse.status,
+        metaStatus: metaResponse.ok ? 'success' : 'failed',
+        metaResponseBody: responseBody,
+      });
+    } catch (fetchErr: any) {
+      return res.status(500).json({
+        error: 'Fetch exception',
+        message: fetchErr?.message,
+      });
+    }
+  }
+
   try {
     if (!isInitialized) {
       await bootstrap();
