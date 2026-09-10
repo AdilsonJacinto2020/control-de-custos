@@ -1,158 +1,119 @@
-# FinControl AO — Correções Aplicadas e Novas Ideias
+# FinControl AO — Correções de Segurança (v2) e Checklist do Bot de WhatsApp
 
-> Este documento acompanha o ficheiro `correcoes-backend-fincontrol.zip`, que contém todos os ficheiros do backend já corrigidos. Copia-os para o teu repositório, mantendo a mesma estrutura de pastas dentro de `controle-custos-backend/src/`. Todas as alterações foram validadas com `tsc --noEmit` (compila sem erros) e com a suite de testes existente (`npx jest`, 14/14 a passar).
-
----
-
-## 1. Correções Críticas
-
-### 1.1 Bot de WhatsApp já não cria uma conta desligada da conta do site
-
-**Problema:** uma mensagem de WhatsApp criava sempre um `Usuario` novo com `googleId: whatsapp_<telefone>`, sem qualquer ligação a uma conta já existente feita via Google no site.
-
-**Correção:**
-- Novo endpoint autenticado `POST /usuarios/whatsapp/gerar-codigo` — o utilizador, já logado no site, pede um código de 6 dígitos válido por 10 minutos.
-- O utilizador envia `"vincular 123456"` ao bot do WhatsApp.
-- `UsuariosService.vincularWhatsappPorCodigo()` localiza a conta dona do código (ainda válido) e associa o número de telefone a ela — inclusive libertando o número de uma eventual conta "só WhatsApp" anterior, para não violar a restrição de unicidade.
-- Se alguém escrever ao bot sem nunca ter vinculado, o sistema continua a criar uma conta leve "só WhatsApp" (para quem começa a usar o produto assim), mas **agora avisa explicitamente** na primeira resposta: *"Já tem conta no site? Vá a Definições > Vincular WhatsApp..."*.
-
-**Ficheiros alterados:** `usuarios/usuario.entity.ts`, `usuarios/usuarios.service.ts`, `usuarios/usuarios.controller.ts` (novo), `usuarios/usuarios.module.ts`, `whatsapp/whatsapp-bot.service.ts`.
-
-**Ainda por fazer no frontend:** um ecrã em "Definições" que chama o novo endpoint e mostra o código com instrução clara + temporizador de 10 minutos.
+> Acompanha o ficheiro `correcoes-seguranca-v2.zip`, com os 4 ficheiros corrigidos: `main.ts`, `auth/auth.module.ts`, `auth/jwt.strategy.ts`, `whatsapp/whatsapp-webhook.controller.ts`. Validado com `tsc --noEmit` (compila sem erros). As tuas melhorias recentes (Evolution API, parser mais robusto, webhook multi-formato) foram mantidas — só corrigi os pontos de segurança.
 
 ---
 
-### 1.2 Login "convidado" deixou de ser uma conta partilhada por todos
+## 1. Correções de Segurança Reaplicadas
 
-**Problema:** `guestLogin()` usava sempre o mesmo `googleId: 'guest_demo_user'` — todos os visitantes em modo convidado viam e editavam os mesmos dados uns dos outros.
+### 1.1 `JWT_SECRET` — removido o fallback fixo, outra vez
 
-**Correção:** cada chamada gera agora um `googleId` único (`guest_<uuid>`), criando uma conta efémera isolada por sessão.
+Tinhas revertido a minha correção anterior e posto de volta um segredo fixo no código:
+```ts
+'fincontrol_fallback_jwt_secret_dev_2026_change_in_production'
+```
+Como o repositório é **público**, este valor está visível a qualquer pessoa — e com ele, qualquer um consegue forjar um token JWT válido para qualquer utilizador, sem login. Voltei a pôr o comportamento de "falhar o arranque se a variável não estiver definida", porque é a única forma de garantir que isto nunca fica esquecido em produção sem seres avisado.
 
-**Ficheiro alterado:** `auth/auth.service.ts`.
+**Ficheiros:** `auth/auth.module.ts`, `auth/jwt.strategy.ts`.
 
-**Sugestão futura:** criar uma tarefa agendada (cron job) que apaga contas com `googleId` a começar por `guest_` e sem atividade há mais de, por exemplo, 30 dias — para não acumular lixo na base de dados.
+**A tua ação:** confirma que `JWT_SECRET` está definido no painel da Vercel → Production, com um valor aleatório forte (ex: `openssl rand -base64 48`). **Sem isto, o backend volta a fazer 500 em tudo**, exatamente como viste nos logs — mas agora sabes exatamente porquê, em vez de andarmos a contornar o sintoma.
 
----
+### 1.2 CORS — voltou a ser uma lista explícita, não "qualquer coisa em `.vercel.app`"
 
-## 2. Correções de Regras de Negócio
+Tinhas alargado o CORS para aceitar qualquer origem terminada em `.vercel.app` ou contendo `localhost`/`fincontrol`. Isso permite que **qualquer outra aplicação hospedada na Vercel** (de qualquer pessoa) faça pedidos autenticados à tua API a partir do browser de um utilizador teu. Voltei a uma lista explícita (`ALLOWED_ORIGINS`), mas incluí `https://control-de-custos-v9ju.vercel.app` como valor por defeito de segurança, para não voltares a ficar bloqueado se esqueceres de definir a variável.
 
-### 2.1 Projeção de rendimento variável agora é por fonte, com janela de 3 meses
+**Ficheiro:** `main.ts`.
 
-**Problema:** a projeção somava **todas** as receitas do utilizador, de qualquer fonte, sem limite de tempo — misturando salário fixo com biscate variável na mesma média.
+**A tua ação:** define `ALLOWED_ORIGINS` explicitamente na Vercel de qualquer forma (não confies só no valor por defeito do código):
+```
+ALLOWED_ORIGINS=https://control-de-custos-v9ju.vercel.app
+```
 
-**Correção:**
-- Novo campo `fonteRendimentoId` em `Transacao`, ligando cada receita à fonte que a gerou.
-- Novo método `TransacoesService.findReceitasPorFonte(usuarioId, fonteId, meses)`, que filtra por fonte específica e por janela de tempo.
-- `FontesRendimentoService.calcularProjecaoRendimentos` agora calcula a média móvel real de 3 meses **por fonte**, e devolve `0` (em vez de um valor arbitrário como 50.000) quando não há histórico ainda — para não fingir uma precisão que não existe.
+### 1.3 `/api/debug-env` e `/api/test-db` — agora exigem uma chave
 
-**Ficheiros alterados:** `transacoes/transacao.entity.ts`, `transacoes/dto/create-transacao.dto.ts`, `transacoes/transacoes.service.ts`, `fontes-rendimento/fontes-rendimento.service.ts`.
+Estes dois endpoints ficaram publicamente acessíveis sem autenticação. Agora só respondem se passares `?key=<DEBUG_KEY>` na URL, onde `DEBUG_KEY` é uma variável de ambiente só tua.
 
-**Ação necessária:** o frontend precisa de passar `fonteRendimentoId` ao criar uma transação de receita, para que a ligação funcione. Vale a pena adicionar um seletor de "fonte de rendimento" no formulário de lançamento de receita.
+**Ficheiro:** `main.ts`.
 
----
+**A tua ação:** define `DEBUG_KEY` na Vercel (qualquer valor secreto), e passa a aceder por exemplo a `https://control-de-custos.vercel.app/api/debug-env?key=<o-teu-valor>`. Sem a variável definida, os endpoints devolvem sempre `404`.
 
-### 2.2 Motor de projeção de fluxo de caixa corrigido em três pontos
+### 1.4 Token de verificação do webhook do WhatsApp
 
-**Problemas e correções:**
-1. **Moedas misturadas:** somava saldos de contas em moedas diferentes como se fossem a mesma unidade → agora converte cada saldo para a `moedaReferencia` do utilizador via `CambioService.converter()` antes de somar.
-2. **Base de despesa só do mês atual:** se o mês estivesse a começar, a projeção parecia otimista demais → agora usa `TransacoesService.findDespesasUltimosMeses(usuarioId, 3)`, uma média móvel real de 3 meses.
-3. **Fallback arbitrário (40.000):** removido — se não houver histórico, a base fica em 0, e o frontend deve mostrar um aviso de "histórico insuficiente para projeção" em vez de um número inventado.
+O mesmo padrão de fallback previsível existia aqui: `WHATSAPP_VERIFY_TOKEN || 'fincontrol_token'`. Removido — agora, se a variável não estiver definida, a verificação do webhook falha explicitamente em vez de aceitar um valor adivinhável.
 
-**Ficheiros alterados:** `projecao/projecao-fluxo-caixa.service.ts`, `projecao/projecao.module.ts`.
-
----
-
-### 2.3 Orçamento semanal agora é calculado corretamente
-
-**Problema:** `getStatusDetalhado` calculava sempre "dia do mês" / "dias no mês", mesmo para orçamentos com `periodo: 'semanal'`.
-
-**Correção:** o cálculo agora bifurca por `periodo` — orçamentos mensais continuam a usar o mês civil; orçamentos semanais usam a semana corrente (segunda a domingo), com o próprio gasto por categoria calculado só dentro dessa janela.
-
-**Ficheiro alterado:** `orcamentos/orcamentos.service.ts`.
+**Ficheiro:** `whatsapp/whatsapp-webhook.controller.ts`.
 
 ---
 
-### 2.4 Espaços partilhados: permissão e cálculo real de acertos
+## 2. Checklist Completo — O Que Falta para o Bot de WhatsApp Funcionar
 
-**Problemas:**
-1. Qualquer membro podia adicionar outros membros ao espaço, independentemente do seu papel.
-2. `calcularAcertos` não calculava nada real — devolvia só uma divisão igualitária genérica, sem olhar para nenhuma transação.
+Isto junta tudo o que já vimos, organizado como lista de verificação única. Percorre de cima a baixo.
 
-**Correções:**
-1. `addMembro` agora verifica se quem está a chamar é `proprietario` ou `administrador`; caso contrário, lança `ForbiddenException`.
-2. Novos campos `espacoPartilhadoId` e `divisaoConjunta` em `Transacao`. `calcularAcertos` agora usa `TransacoesService.findConjuntasPorEspaco()` para somar o que cada membro **pagou de facto** (transações que registou, marcadas como conjuntas) contra o que **lhe cabia pagar** segundo o `percentualDivisaoPadrao`, devolvendo um saldo por membro (positivo = é credor, negativo = deve aos outros).
+### 2.1 Pré-requisito: o backend tem de arrancar sem crashar
 
-**Ficheiros alterados:** `transacoes/transacao.entity.ts`, `transacoes/dto/create-transacao.dto.ts`, `espacos-partilhados/espacos-partilhados.service.ts`, `espacos-partilhados/espacos-partilhados.module.ts`.
+- [ ] `JWT_SECRET` definido na Vercel (Production) — sem isto nada funciona, nem sequer login normal.
+- [ ] `DATABASE_URL` (ou as variáveis `DB_*`) definidas e a apontar para a tua base de dados Neon real.
+- [ ] `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` definidos (para o login Google continuar a funcionar).
+- [ ] `ALLOWED_ORIGINS` definido com o domínio real do frontend.
+- [ ] Confirma tudo isto em `https://control-de-custos.vercel.app/api/debug-env?key=<DEBUG_KEY>` — deve mostrar `true` em `hasJwtSecret`, `hasDatabaseUrl`, `hasGoogleClientId`.
 
-**Ação necessária no frontend:** ao lançar uma despesa num espaço partilhado, adicionar um toggle "Esta despesa é conjunta?" que define `espacoPartilhadoId` e `divisaoConjunta: true` no payload.
+### 2.2 Escolher o canal de envio: Evolution API ou Meta Cloud API
 
----
+O código já suporta os dois, com a Evolution API a ter prioridade se estiver configurada. **Escolhe um dos dois caminhos abaixo — não precisas dos dois.**
 
-### 2.5 Race condition na atualização de saldo
+#### Caminho A — Evolution API (mais rápido para começar, não exige verificação de negócio)
 
-**Problema:** `recalcularSaldo` fazia leitura-depois-escrita (`find` + `save`), vulnerável a condição de corrida quando duas transações chegam quase ao mesmo tempo (ex: duas mensagens de WhatsApp seguidas podiam fazer o segundo lançamento sobrescrever o efeito do primeiro).
+A Evolution API é um gateway open-source não-oficial que liga a um número de WhatsApp normal via QR code (como o WhatsApp Web), sem passar pela burocracia de verificação de negócio da Meta.
 
-**Correção:** substituído por `contasRepository.increment()`, que faz um `UPDATE saldo_atual = saldo_atual + delta` atómico diretamente na base de dados.
+- [ ] Ter uma instância Evolution API a correr (self-hosted num serviço tipo Railway/Render, ou um provedor gerido de Evolution API).
+- [ ] Ligar essa instância a um número de WhatsApp real via QR code (processo da própria Evolution API — normalmente um endpoint `/instance/connect/<nome>` que devolve o QR para escaneares com o telemóvel do número que vai ser o bot).
+- [ ] Definir na Vercel: `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE_NAME`.
+- [ ] Configurar o **webhook de saída** da própria instância Evolution API para apontar para `https://control-de-custos.vercel.app/webhooks/whatsapp` (isto configura-se do lado da Evolution API, não do Meta — normalmente em `/webhook/set/<instancia>`).
+- [ ] **Risco a saber:** contas de WhatsApp normais ligadas via este tipo de gateway não-oficial podem ser banidas pela Meta se enviarem muito volume ou padrões suspeitos — é aceitável para validar o produto com poucos utilizadores, mas não é uma garantia de longo prazo à escala.
 
-**Ficheiro alterado:** `contas/contas.service.ts`.
+#### Caminho B — Meta WhatsApp Cloud API (oficial, mais burocrático)
 
----
+- [ ] `WHATSAPP_PHONE_NUMBER_ID` — já tens (`1370747699451260`, do número de teste).
+- [ ] `WHATSAPP_ACCESS_TOKEN` — **atenção:** o token que vês no ecrã "Try it out" é temporário (expira em ~24h). Para produção, gera um token permanente: Meta Business Settings → **System Users** → criar um → gerar token com a permissão `whatsapp_business_messaging`, sem expiração.
+- [ ] `WHATSAPP_VERIFY_TOKEN` — define um valor teu (ex: `fincontrol_verify_2026_xyz`).
+- [ ] No painel do Meta → **Step 2. Production setup → Configuration → Webhooks**:
+  - Callback URL: `https://control-de-custos.vercel.app/webhooks/whatsapp`
+  - Verify token: o mesmo valor de `WHATSAPP_VERIFY_TOKEN`
+  - Subscrever o campo **`messages`**
+- [ ] Enquanto estiveres no número de teste, só consegues enviar para números na lista de "recipient numbers" testadores — adiciona o teu próprio número lá.
+- [ ] Para sair do modo de teste e falar com qualquer número: completar **Step 3. Business verification** (upload de documentos, revisão da Meta) — pode demorar dias.
 
-### 2.6 Segurança: JWT_SECRET sem valor de fallback
+### 2.3 Testar o fluxo de ponta a ponta
 
-**Problema:** havia um segredo fixo hardcoded (`'fincontrol-default-secret-key-change-me'`) usado se a variável de ambiente não estivesse definida — visível a qualquer pessoa que veja o código-fonte.
+- [ ] Enviar `"Oi"` ao número do bot → confirmar que recebes uma resposta de boas-vindas (não só um 200 no log, a mensagem tem mesmo de chegar ao teu WhatsApp).
+- [ ] Enviar `"gastei 2000 kz em táxi"` → confirmar que aparece como transação na conta associada a esse número, e que a resposta de confirmação chega.
+- [ ] Enviar uma foto de recibo (se o OCR já estiver ligado) → confirmar processamento.
+- [ ] Testar o fluxo de vinculação: gerar código em Definições no site → enviar `"vincular 123456"` (ou só `"123456"`) → confirmar que a mensagem seguinte (`"gastei..."`) aparece na **mesma conta** que usas no site, não numa conta nova.
+- [ ] Testar o comando `"errado"` logo a seguir a um lançamento, para confirmar que o desfazer funciona.
 
-**Correção:** o servidor agora falha ao arrancar (`throw new Error(...)`) se `JWT_SECRET` não estiver configurado, em vez de usar um valor previsível.
+### 2.4 Se algo falhar neste ponto
 
-**Ficheiros alterados:** `auth/auth.module.ts`, `auth/jwt.strategy.ts`.
-
-**Ação necessária:** garantir que `JWT_SECRET` está definido nas variáveis de ambiente de produção (Vercel/Railway/etc.) antes do próximo deploy, ou o backend não vai arrancar.
-
----
-
-### 2.7 Ajustes menores
-
-- **Câmbio:** a taxa "oficial" vem de um agregador de mercado (`open.er-api.com`), não do Banco Nacional de Angola. Adicionado o campo `fonteTaxaOficial` na resposta da API, com o texto explícito, para o frontend poder mostrar essa distinção ao utilizador.
-- **Parser de WhatsApp:** agora prioriza um número que tenha um indicador de moeda explícito a seguir (ex: "5000 kz"), em vez de assumir sempre o primeiro número da frase — evita capturar por engano um número de hora ou data escrito antes do valor.
-
-**Ficheiros alterados:** `cambio/cambio.service.ts`, `whatsapp/parser/whatsapp-parser.service.ts`.
-
----
-
-## 3. O Que Ainda Não Foi Corrigido (por decisão de escopo)
-
-Estes ficaram de fora desta rodada por serem de maior esforço ou dependerem de decisão de produto:
-
-- **Transação atómica completa em `TransacoesService.create()`:** o `increment()` resolve a condição de corrida no saldo, mas criar a transação e atualizar o saldo ainda são duas operações separadas — se a segunda falhar, fica inconsistência. O ideal é envolver ambas numa transação de base de dados (`queryRunner`/`manager.transaction()`).
-- **Limpeza automática de contas convidado antigas** (mencionado na secção 1.2).
-- **Parsers de importação específicos por banco** (BAI, BFA, Millennium) — o parser atual é um CSV genérico por posição de coluna, que funciona mas não é robusto ao formato real de exportação de cada banco.
-- **Verificação de posse de `contaId` em cada chamada a `recalcularSaldo`** dentro de `remove()` da conta destino de uma transferência — hoje confia que já foi validado antes; não é um risco de segurança prático dado o fluxo atual, mas vale endurecer no futuro.
+- [ ] Verifica os **Runtime Logs** da Vercel filtrados por `/webhooks/whatsapp` — deve aparecer uma entrada por cada mensagem recebida.
+- [ ] Se não aparecer nada: o problema está antes de chegar ao teu servidor — confirma a configuração do webhook do lado do Meta/Evolution API (URL certa, verificação aceite).
+- [ ] Se aparecer com 200 mas a mensagem não chega ao teu telemóvel: o problema é no envio de saída — confirma `EVOLUTION_API_URL`/`EVOLUTION_API_KEY` ou `WHATSAPP_ACCESS_TOKEN`/`WHATSAPP_PHONE_NUMBER_ID`, e usa `/api/debug-env?key=...` para confirmar que estão mesmo definidos (sem expor os valores, só se existem).
+- [ ] Se aparecer com 500: cola o log expandido aqui, tal como fizeste antes — normalmente é falta de alguma env var ou uma coluna em falta na base de dados.
 
 ---
 
-## 4. Novas Ideias
+## 3. Resumo de Variáveis de Ambiente Necessárias
 
-### 4.1 Auditoria de confiança do parser do WhatsApp
-Guardar, para cada `MensagemProcessada`, se a categoria/valor foi aceite diretamente ou corrigido pelo utilizador. Ao fim de algumas semanas, isto dá-te um relatório real de "taxa de acerto" do parser por tipo de mensagem — e é a base de dados perfeita para, mais tarde, treinar ou ajustar regras de categorização automaticamente por utilizador (ex: "para este utilizador, 'kero' significa sempre Alimentação").
-
-### 4.2 "Modo reconciliação" mensal
-Uma vez por mês, o bot envia proativamente um resumo tipo *"Este mês tiveste 3 lançamentos marcados como suspeitos de duplicado, ainda por resolver — responde 'rever' para veres a lista."* Isto evita que duplicados sinalizados fiquem esquecidos para sempre no limbo `SUSPEITO`.
-
-### 4.3 Indicador de "confiança da projeção" na interface
-Já que a projeção de fluxo de caixa e a de rendimento variável agora devolvem intervalos honestos (incluindo `0` quando não há histórico), vale a pena o frontend mostrar um selo visual: "Alta confiança" (3+ meses de histórico), "Confiança moderada" (1-2 meses), "Sem histórico suficiente" (0). Isto transforma uma limitação técnica em transparência, que reforça a confiança no produto em vez de a minar.
-
-### 4.4 Papel "visualizador_resumo" ainda não tem lógica de restrição
-O enum `PapelEspaco` no código atual só tem `PROPRIETARIO`, `ADMINISTRADOR`, `MEMBRO` — falta o `visualizador_resumo` que desenhámos no modelo de dados original, que permite ver só totais agregados sem detalhe de transações individuais dos outros membros. Vale a pena adicionar esse papel e a lógica de filtragem correspondente no endpoint que lista transações de um espaço partilhado (quando esse endpoint existir).
-
-### 4.5 Alerta de câmbio favorável
-Já que o `CambioService` já faz fetch periódico de cotações reais, dá para guardar um pequeno histórico diário e o bot avisar proativamente: *"A taxa USD/AOA subiu 3% esta semana — pode ser boa altura para converter poupança em USD para AOA, se precisares de liquidez."* É um insight genuinamente diferenciador para o contexto angolano, e não precisa de IA — é só comparar a cotação de hoje com a de X dias atrás.
-
-### 4.6 "Modo negócio pequeno" como teste de mercado B2B antecipado
-Antes de investir na Fase 9 completa (B2B), vale a pena testar a procura com o mínimo possível: adicionar um único campo opcional `finalidade: 'pessoal' | 'negocio'` numa `Conta`, e permitir gerar um relatório simples de "receitas menos despesas por categoria" filtrado por essa finalidade. Isto testa se há procura real de pequenos negócios angolanos (vendedores informais, por exemplo) sem construir toda a arquitetura multi-utilizador-por-empresa do roadmap original.
-
-### 4.7 Modo "sem dados móveis" (offline-first parcial)
-Dado que os dados móveis são caros/limitados em Angola, considerar cache local no frontend (via React Query com `staleTime` generoso) para o dashboard funcionar razoavelmente bem com conexão instável, e permitir que o lançamento manual funcione offline com fila de sincronização quando a conexão voltar — reduz a dependência de estar sempre online para uma ação tão básica como registar uma despesa.
+| Variável | Obrigatória? | Para quê |
+|---|---|---|
+| `JWT_SECRET` | Sim | Login/autenticação — sem isto o backend não arranca |
+| `DATABASE_URL` | Sim | Ligação à base de dados |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Sim | Login Google |
+| `ALLOWED_ORIGINS` | Recomendado | CORS — sem isto usa o valor por defeito (só o teu frontend) |
+| `DEBUG_KEY` | Opcional | Protege `/api/debug-env` e `/api/test-db` |
+| `WHATSAPP_VERIFY_TOKEN` | Se usares Meta Cloud API | Verificação do webhook |
+| `WHATSAPP_PHONE_NUMBER_ID` | Se usares Meta Cloud API | Envio de mensagens |
+| `WHATSAPP_ACCESS_TOKEN` | Se usares Meta Cloud API | Envio de mensagens (usar token permanente de System User, não o temporário) |
+| `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` / `EVOLUTION_INSTANCE_NAME` | Se usares Evolution API | Envio de mensagens (alternativa não-oficial) |
 
 ---
 
-*Próximo passo sugerido: aplicar as alterações do zip ao repositório, correr `npm run migration:generate` (ou equivalente) para gerar a migração dos novos campos (`fonteRendimentoId`, `espacoPartilhadoId`, `divisaoConjunta`, `codigoVinculacaoWhatsapp`, `codigoVinculacaoExpiraEm`), e testar manualmente o fluxo de vinculação de WhatsApp antes de lançar a próxima versão.*
+*Depois de aplicares o zip e confirmares as variáveis de ambiente na Vercel, o passo mais rápido para saberes se está tudo certo é o `/api/debug-env?key=<a-tua-chave>` — se todos os `has*` vierem `true`, o resto é só testar o fluxo do WhatsApp de ponta a ponta como descrito na secção 2.3.*

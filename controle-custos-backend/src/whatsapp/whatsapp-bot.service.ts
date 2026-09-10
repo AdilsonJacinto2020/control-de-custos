@@ -35,10 +35,12 @@ export class WhatsappBotService {
     const matchVinculacao = rawInicial.match(/^(?:vincular\s+)?(\d{6})$/);
     if (matchVinculacao) {
       const codigo = matchVinculacao[1];
+      this.logger.log(`[VINCULAR] Tentativa de vinculação: telefone="${telefone}", codigo="${codigo}"`);
       const usuarioVinculado = await this.usuariosService.vincularWhatsappPorCodigo(codigo, telefone);
+      this.logger.log(`[VINCULAR] Resultado: ${usuarioVinculado ? `vinculado ao utilizador ${usuarioVinculado.id}` : 'FALHOU (código inválido ou expirado)'}`);
       const resposta = usuarioVinculado
-        ? '✅ *O seu WhatsApp foi vinculado com sucesso à sua conta do FinControl!*\n\nTodos os lançamentos que fizer por aqui vão aparecer diretamente no seu painel web.'
-        : '⚠️ Código de vinculação inválido ou expirado.\n\nPor favor, aceda a *Vincular WhatsApp* no site para gerar um novo código de 6 dígitos e envie aqui.';
+        ? '✅ *O seu WhatsApp foi vinculado com sucesso à sua conta do FinControl!*\n\nTodos os lançamentos que fizer por aqui vão aparecer diretamente no seu painel web.\n\nEnvie *oi* para começar a registar os seus gastos.'
+        : '⚠️ Código de vinculação inválido ou expirado.\n\nO código é válido por *30 minutos*. Por favor, aceda a *Vincular WhatsApp* no site, gere um novo código e envie aqui *imediatamente*.';
       await this.sendMetaWhatsappMessage(telefone, resposta);
       return resposta;
     }

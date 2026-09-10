@@ -183,6 +183,52 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // Endpoint de diagnóstico para ver utilizadores e estado de vinculação WhatsApp
+  if (reqUrl.startsWith('/api/debug-users') || reqUrl.startsWith('/debug-users')) {
+    const debugKey = process.env.DEBUG_KEY;
+    if (!debugKey || req.query?.key !== debugKey) {
+      return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
+    }
+
+    const { Client } = await import('pg');
+    const client = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    });
+    try {
+      await client.connect();
+      const result = await client.query(`
+        SELECT 
+          id, nome, email, 
+          "telefoneWhatsapp",
+          "codigoVinculacaoWhatsapp",
+          "codigoVinculacaoExpiraEm",
+          CASE WHEN "codigoVinculacaoExpiraEm" > NOW() THEN 'VALID' ELSE 'EXPIRED' END AS "codigoStatus",
+          "criadoEm"
+        FROM usuarios 
+        ORDER BY "criadoEm" DESC 
+        LIMIT 20
+      `);
+      const conversas = await client.query(`
+        SELECT "telefoneWhatsapp", estado, "ultimaInteracaoEm"
+        FROM conversas_whatsapp
+        ORDER BY "ultimaInteracaoEm" DESC
+        LIMIT 10
+      `).catch(() => ({ rows: [] }));
+      await client.end();
+      return res.status(200).json({
+        usuarios: result.rows,
+        conversas: conversas.rows,
+        serverTime: new Date().toISOString(),
+      });
+    } catch (dbErr: any) {
+      return res.status(500).json({
+        status: 'db_query_failed',
+        error: dbErr?.message,
+      });
+    }
+  }
+
   // Endpoint de teste de envio direto via Meta Cloud API para diagnóstico
   if (reqUrl.startsWith('/api/test-whatsapp') || reqUrl.startsWith('/test-whatsapp')) {
     const debugKey = process.env.DEBUG_KEY;

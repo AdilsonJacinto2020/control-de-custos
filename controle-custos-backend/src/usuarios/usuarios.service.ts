@@ -80,7 +80,7 @@ export class UsuariosService {
     }
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiraEm = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+    const expiraEm = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
 
     user.codigoVinculacaoWhatsapp = codigo;
     user.codigoVinculacaoExpiraEm = expiraEm;
