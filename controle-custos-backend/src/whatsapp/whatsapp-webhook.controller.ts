@@ -51,13 +51,17 @@ export class WhatsappWebhookController {
           return { status: 'ignored_own_message' };
         }
 
-        const remoteJid = key?.remoteJid || msgData?.remoteJid || msgData?.sender || body?.sender;
-        let cleanedFrom = remoteJid ? String(remoteJid).replace('@s.whatsapp.net', '').replace('@lid', '').replace(/:\d+/, '') : undefined;
-        // Se remoteJid for LID, tenta pegar do senderPn ou participant se disponível
-        if (msgData?.senderPn) {
+        // Prioridade total para o número de telefone real: key.remoteJidAlt ou remoteJid
+        let cleanedFrom: string | undefined;
+        if (key?.remoteJidAlt) {
+          cleanedFrom = String(key.remoteJidAlt).replace('@s.whatsapp.net', '').replace(/:\d+/, '').replace(/[^0-9]/g, '');
+        } else if (msgData?.remoteJidAlt) {
+          cleanedFrom = String(msgData.remoteJidAlt).replace('@s.whatsapp.net', '').replace(/:\d+/, '').replace(/[^0-9]/g, '');
+        } else if (msgData?.senderPn) {
           cleanedFrom = String(msgData.senderPn).replace(/[^0-9]/g, '');
-        } else if (msgData?.participant && !msgData.participant.includes('@lid')) {
-          cleanedFrom = String(msgData.participant).replace('@s.whatsapp.net', '').replace(/:\d+/, '');
+        } else {
+          const remoteJid = key?.remoteJid || msgData?.remoteJid || msgData?.sender || body?.sender;
+          cleanedFrom = remoteJid ? String(remoteJid).replace('@s.whatsapp.net', '').replace('@lid', '').replace(/:\d+/, '').replace(/[^0-9]/g, '') : undefined;
         }
         from = cleanedFrom;
         
