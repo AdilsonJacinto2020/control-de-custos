@@ -115,7 +115,54 @@ async function readWebhookLogs() {
       LIMIT 20
     `);
     await client.end();
-    return result.rows.map(r => ({ timestamp: r.timestamp, body: r.body, headers: r.headers }));
+    return result.rows.map(r => {
+      const body = r.body;
+      // Extrai campos legíveis do payload Evolution API
+      let evento = body?.event || '(desconhecido)';
+      let telefone: string | null = null;
+      let mensagem: string | null = null;
+      let direcao: string | null = null;
+
+      const data = body?.data;
+      const key = data?.key || body?.key;
+
+      // Telefone
+      if (key?.remoteJidAlt) {
+        telefone = String(key.remoteJidAlt).replace('@s.whatsapp.net', '');
+      } else if (data?.remoteJidAlt) {
+        telefone = String(data.remoteJidAlt).replace('@s.whatsapp.net', '');
+      } else if (key?.remoteJid) {
+        telefone = String(key.remoteJid).replace('@s.whatsapp.net', '').replace('@lid', '');
+      } else if (body?.sender) {
+        telefone = String(body.sender).replace('@s.whatsapp.net', '');
+      }
+
+      // Mensagem de texto
+      const msg = data?.message || body?.message;
+      if (msg) {
+        mensagem =
+          msg.conversation ||
+          msg.extendedTextMessage?.text ||
+          msg.imageMessage?.caption ||
+          '(media/outro tipo)';
+      }
+
+      // Direcção
+      if (key?.fromMe === true) direcao = '⬆️ enviada pelo bot';
+      else if (key?.fromMe === false) direcao = '⬇️ recebida do utilizador';
+
+      return {
+        timestamp: r.timestamp,
+        resumo: {
+          evento,
+          telefone,
+          mensagem,
+          direcao,
+        },
+        body,
+        headers: r.headers,
+      };
+    });
   } catch (e) {
     return [];
   }
