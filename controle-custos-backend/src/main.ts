@@ -2,12 +2,15 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { WhatsappBotService } from './whatsapp/whatsapp-bot.service';
 import express, { Express } from 'express';
 
 const server: Express = express();
+let nestAppInstance: any = null;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
+  nestAppInstance = app;
   const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
     : [
@@ -400,42 +403,25 @@ export default async function handler(req: any, res: any) {
 
         if (!telefone || !texto) { skipped++; continue; }
 
-        // Injectar a mensagem no webhook da própria Vercel para reutilizar toda a lógica do bot
-        const webhookPayload = {
-          event: 'messages.upsert',
-          instance: evolutionInstance,
-          data: { key: msg.key, message: msg.message, pushName: msg.pushName },
-        };
-
         try {
-          // Processar internamente através do NestJS (inicializa se necessário)
           if (!isInitialized) { await bootstrap(); isInitialized = true; }
 
-          // Simular o request ao handler NestJS directamente
-          await new Promise<void>((resolve, reject) => {
-            const fakeReq = {
-              method: 'POST',
-              url: '/webhooks/whatsapp',
-              body: webhookPayload,
-              headers: { 'content-type': 'application/json', origin: undefined },
-            };
-            const fakeRes = {
-              status: () => fakeRes,
-              json: () => { resolve(); return fakeRes; },
-              send: () => { resolve(); return fakeRes; },
-              setHeader: () => fakeRes,
-              end: () => { resolve(); return fakeRes; },
-            };
-            server(fakeReq as any, fakeRes as any).catch(reject);
-            // Timeout de segurança
-            setTimeout(resolve, 8000);
-          });
-          processed++;
+          const botService = nestAppInstance?.get(WhatsappBotService);
+
+          if (botService) {
+            console.log(`[POLL] Invocando botService.processIncomingMessage('${telefone}', '${texto}')`);
+            const botReply = await botService.processIncomingMessage(telefone, texto);
+            console.log(`[POLL] Resposta do bot gerada:`, botReply);
+            processed++;
+          } else {
+            console.warn('[POLL] WhatsappBotService não encontrado no container NestJS');
+          }
+
           if (!newestTimestamp || (msgTimestamp && msgTimestamp > newestTimestamp)) {
             newestTimestamp = msgTimestamp;
           }
         } catch (err: any) {
-          console.error('[POLL] Erro ao processar:', err?.message);
+          console.error('[POLL] Erro ao processar:', err?.message, err?.stack);
         }
       }
 
