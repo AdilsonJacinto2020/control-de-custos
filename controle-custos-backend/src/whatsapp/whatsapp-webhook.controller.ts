@@ -38,19 +38,32 @@ export class WhatsappWebhookController {
       let text: string | undefined = body.text;
 
       // 1. Suporte para Evolution API v1 e v2
-      if (body?.event === 'messages.upsert' || body?.event === 'MESSAGES_UPSERT' || body?.data?.message) {
+      if (
+        body?.event === 'messages.upsert' ||
+        body?.event === 'MESSAGES_UPSERT' ||
+        body?.event === 'messages.update' ||
+        body?.data?.message ||
+        body?.data?.key
+      ) {
         const msgData = body?.data;
-        const key = msgData?.key;
+        const key = msgData?.key || body?.key;
         if (key?.fromMe) {
           return { status: 'ignored_own_message' };
         }
 
-        from = key?.remoteJid?.replace('@s.whatsapp.net', '') || msgData?.sender;
+        const remoteJid = key?.remoteJid || msgData?.remoteJid || msgData?.sender || body?.sender;
+        from = remoteJid ? String(remoteJid).replace('@s.whatsapp.net', '').replace(/:\d+/, '') : undefined;
+        
+        const m = msgData?.message || body?.message;
         text =
-          msgData?.message?.conversation ||
-          msgData?.message?.extendedTextMessage?.text ||
-          msgData?.message?.buttonsResponseMessage?.selectedButtonId ||
-          msgData?.message?.listResponseMessage?.title;
+          m?.conversation ||
+          m?.extendedTextMessage?.text ||
+          m?.buttonsResponseMessage?.selectedButtonId ||
+          m?.listResponseMessage?.title ||
+          m?.imageMessage?.caption ||
+          m?.videoMessage?.caption ||
+          msgData?.body ||
+          body?.body;
       }
 
       // 2. Suporte para Cloud API da Meta (WhatsApp Business Cloud API)
