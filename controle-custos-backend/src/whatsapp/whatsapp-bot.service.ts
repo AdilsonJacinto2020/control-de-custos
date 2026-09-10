@@ -32,10 +32,20 @@ export class WhatsappBotService {
     // 0. Comando de vinculação a uma conta já existente do site
     // Suporta tanto "vincular 123456" quanto o utilizador enviar diretamente apenas "123456"
     const rawInicial = texto.trim().toLowerCase();
-    const matchVinculacao = rawInicial.match(/^(?:vincular\s+)?(\d{6})$/);
+    const matchVinculacao = rawInicial.match(/^vincular\s+(\d{6})$/);
     if (matchVinculacao) {
       const codigo = matchVinculacao[1];
       this.logger.log(`[VINCULAR] Tentativa de vinculação: telefone="${telefone}", codigo="${codigo}"`);
+
+      // Verificar se este número já está vinculado a uma conta real (com email = conta Google)
+      const jaVinculado = await this.usuariosService.findByWhatsapp(telefone);
+      if (jaVinculado && jaVinculado.email) {
+        this.logger.log(`[VINCULAR] Número ${telefone} já está vinculado à conta ${jaVinculado.email}`);
+        const resposta = `✅ *O seu WhatsApp já está vinculado* à conta *${jaVinculado.nome || jaVinculado.email}*!\n\nNão precisa de fazer mais nada. Pode usar o bot normalmente.\n\nEnvie *oi* para ver o menu ou *saldo* para ver o resumo financeiro.`;
+        await this.sendMetaWhatsappMessage(telefone, resposta);
+        return resposta;
+      }
+
       const usuarioVinculado = await this.usuariosService.vincularWhatsappPorCodigo(codigo, telefone);
       this.logger.log(`[VINCULAR] Resultado: ${usuarioVinculado ? `vinculado ao utilizador ${usuarioVinculado.id}` : 'FALHOU (código inválido ou expirado)'}`);
       const resposta = usuarioVinculado
@@ -155,8 +165,9 @@ export class WhatsappBotService {
           new Intl.NumberFormat('pt-AO', { minimumFractionDigits: 0 }).format(v) + ' Kz';
 
         return `📊 *Resumo Financeiro FinControl (${mes}/${ano})*\n\n🟢 *Receitas:* ${formatKz(dashboard.totalReceitas || 0)}\n🔴 *Despesas:* ${formatKz(dashboard.totalDespesas || 0)}\n💰 *Saldo Líquido:* ${formatKz(dashboard.saldoMes || 0)}\n\n_Para registar novo gasto, envie: "Descrição Valor kz"_`;
-      } catch {
-        return '📊 *FinControl:* As suas contas estão sincronizadas. Para registar um gasto envie ex: "Almoço 2500 kz".';
+      } catch (err: any) {
+        this.logger.error(`[SALDO] Erro ao consultar dashboard: ${err?.message}`);
+        return '📊 *FinControl:* Não foi possível consultar o saldo agora. Tente novamente em instantes.';
       }
     }
 
@@ -172,6 +183,10 @@ export class WhatsappBotService {
     // Obter conta principal do utilizador
     const contas = await this.contasService.findAll(usuarioId);
     const contaPrincipal = contas[0];
+
+    if (!contaPrincipal) {
+      return '⚠️ Ainda não tem nenhuma conta criada no FinControl. Aceda ao site para criar a sua primeira conta antes de registar transações.';
+    }
 
     conversa.dadosRascunho = {
       valor: parsed.valor,
