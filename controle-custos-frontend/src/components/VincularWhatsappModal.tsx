@@ -153,6 +153,17 @@ export const VincularWhatsappModal: React.FC<VincularWhatsappModalProps> = ({ is
                       )}
                     </button>
                   </div>
+
+                  <div className="mt-3">
+                    <a
+                      href={`https://wa.me/244952617454?text=${encodeURIComponent('vincular ' + codigo)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary !w-full !py-2.5 !text-sm flex items-center justify-center gap-2 !no-underline"
+                    >
+                      <MessageSquare size={16} /> Abrir WhatsApp e Enviar Código
+                    </a>
+                  </div>
                 </div>
 
                 <div className="whatsapp-security-hint">
