@@ -32,7 +32,7 @@ export class WhatsappBotService {
     // 0. Comando de vinculação a uma conta já existente do site
     // Suporta tanto "vincular 123456" quanto o utilizador enviar diretamente apenas "123456"
     const rawInicial = texto.trim().toLowerCase();
-    const matchVinculacao = rawInicial.match(/^vincular\s+(\d{6})$/);
+    const matchVinculacao = rawInicial.match(/^(?:vincular\s+)?(\d{6})$/);
     if (matchVinculacao) {
       const codigo = matchVinculacao[1];
       this.logger.log(`[VINCULAR] Tentativa de vinculação: telefone="${telefone}", codigo="${codigo}"`);

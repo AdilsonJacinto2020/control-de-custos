@@ -346,18 +346,31 @@ export default async function handler(req: any, res: any) {
       const { Client } = await import('pg');
       const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
       await client.connect();
+      // Criar tabela de estado e tabela de deduplicação de IDs se não existirem
       await client.query(`
         CREATE TABLE IF NOT EXISTS whatsapp_poller_state (
           key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT NOW()
-        )
+        );
+        CREATE TABLE IF NOT EXISTS whatsapp_processed_ids (
+          message_id TEXT PRIMARY KEY,
+          telefone TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_whatsapp_processed_ids_created_at ON whatsapp_processed_ids (created_at);
       `);
+
+      // Limpar IDs com mais de 7 dias para a tabela não crescer indefinidamente
+      await client.query(`DELETE FROM whatsapp_processed_ids WHERE created_at < NOW() - INTERVAL '7 days'`).catch(() => {});
+
       const stateRow = await client.query(
         `SELECT value FROM whatsapp_poller_state WHERE key = 'last_processed_message_at'`
       );
       const lastProcessedAt = stateRow.rows.length > 0 ? new Date(stateRow.rows[0].value) : null;
-      const sinceDate = lastProcessedAt
-        ? new Date(lastProcessedAt.getTime() - 5000)
-        : new Date(Date.now() - 2 * 60 * 1000);
+      // Considerar apenas mensagens dos últimos 5 minutos no máximo para evitar reprocessar histórico antigo
+      const cincoMinutosAtras = new Date(Date.now() - 5 * 60 * 1000);
+      const sinceDate = lastProcessedAt && lastProcessedAt > cincoMinutosAtras
+        ? new Date(lastProcessedAt.getTime() - 2000)
+        : cincoMinutosAtras;
 
       // Buscar mensagens novas na Evolution API
       const evResp = await fetch(`${evolutionUrl}/chat/findMessages/${evolutionInstance}`, {
@@ -368,7 +381,7 @@ export default async function handler(req: any, res: any) {
             key: { fromMe: false },
             messageTimestamp: { gte: Math.floor(sinceDate.getTime() / 1000) },
           },
-          limit: 20,
+          limit: 15,
         }),
       });
 
@@ -384,8 +397,26 @@ export default async function handler(req: any, res: any) {
       const log: any[] = [];
 
       for (const msg of mensagens) {
+        const msgId = msg.id || msg.key?.id;
         const msgTimestamp = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000) : null;
-        if (lastProcessedAt && msgTimestamp && msgTimestamp <= lastProcessedAt) { skipped++; continue; }
+
+        // Ignorar se já for mais antiga que o cursor conhecido
+        if (lastProcessedAt && msgTimestamp && msgTimestamp <= lastProcessedAt) {
+          skipped++;
+          continue;
+        }
+
+        // Deduplicação estrita: verificar se já processamos este ID específico
+        if (msgId) {
+          const alreadyProcessed = await client.query(
+            `SELECT 1 FROM whatsapp_processed_ids WHERE message_id = $1`,
+            [msgId]
+          );
+          if (alreadyProcessed.rows.length > 0) {
+            skipped++;
+            continue;
+          }
+        }
 
         const key = msg.key;
         let telefone: string | null = null;
@@ -397,11 +428,28 @@ export default async function handler(req: any, res: any) {
         const message = msg.message;
         const texto: string | null = message?.conversation || message?.extendedTextMessage?.text || null;
 
-        const logEntry = { id: msg.id, tel: telefone, txt: texto, ts: msgTimestamp?.toISOString() };
+        const logEntry = { id: msgId, tel: telefone, txt: texto, ts: msgTimestamp?.toISOString() };
         log.push(logEntry);
         console.log('[POLL] Mensagem:', JSON.stringify(logEntry));
 
-        if (!telefone || !texto) { skipped++; continue; }
+        if (!telefone || !texto) {
+          skipped++;
+          if (msgId) {
+            await client.query(
+              `INSERT INTO whatsapp_processed_ids (message_id, telefone) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [msgId, telefone || 'unknown']
+            );
+          }
+          continue;
+        }
+
+        // Marcar ID imediatamente antes de chamar o bot para evitar race conditions
+        if (msgId) {
+          await client.query(
+            `INSERT INTO whatsapp_processed_ids (message_id, telefone) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [msgId, telefone]
+          );
+        }
 
         try {
           if (!isInitialized) { await bootstrap(); isInitialized = true; }
