@@ -136,20 +136,31 @@ async function readWebhookLogs() {
         const presenceStatus = data?.presences?.[presenceId]?.lastKnownPresence || data?.lastKnownPresence || 'ativo';
         mensagem = presenceStatus === 'composing' ? '✍️ Cliente a digitar no WhatsApp...' : `Presença: ${presenceStatus}`;
         direcao = '✍️ atividade do utilizador';
-      } else if (evento === 'contacts.update' || evento === 'chats.update') {
+      } else if (
+        evento === 'contacts.update' ||
+        evento === 'contacts.upsert' ||
+        evento === 'chats.update' ||
+        evento === 'chats.set' ||
+        evento === 'chats.upsert' ||
+        evento === 'labels.edit' ||
+        evento === 'connection.update' ||
+        evento === 'qrcode.updated' ||
+        evento === 'messages.set' ||
+        evento === 'messages.edited'
+      ) {
         categoria = 'sistema';
         const item = Array.isArray(data) ? data[0] : data;
         const jid = item?.remoteJid || item?.id || '';
-        telefone = String(jid).replace('@s.whatsapp.net', '').replace('@lid', ' (LID)');
-        mensagem = `Sincronização de conversa/contacto (${evento})`;
-        direcao = '🔄 sincronização WhatsApp';
+        telefone = jid ? String(jid).replace('@s.whatsapp.net', '').replace('@lid', ' (LID)') : '(sistema)';
+        mensagem = `Evento interno Baileys/Evolution: ${evento}`;
+        direcao = '⚙️ Sincronização de background';
       } else if (evento === 'send.message' || key?.fromMe === true) {
         categoria = 'bot';
         direcao = '⬆️ enviada pelo bot';
         telefone = key?.remoteJid ? String(key.remoteJid).replace('@s.whatsapp.net', '') : null;
         const msg = data?.message || body?.message;
         mensagem = msg?.conversation || msg?.extendedTextMessage?.text || (typeof msg === 'string' ? msg : JSON.stringify(msg));
-      } else {
+      } else if (evento === 'messages.upsert' || evento === 'MESSAGES_UPSERT') {
         categoria = 'cliente';
         direcao = '⬇️ recebida do utilizador';
         if (key?.remoteJidAlt) {
@@ -170,6 +181,10 @@ async function readWebhookLogs() {
           data?.body ||
           body?.body ||
           '(sem texto)';
+      } else {
+        categoria = 'sistema';
+        direcao = `ℹ️ ${evento}`;
+        mensagem = `Evento não categorizado: ${evento}`;
       }
 
       return {
