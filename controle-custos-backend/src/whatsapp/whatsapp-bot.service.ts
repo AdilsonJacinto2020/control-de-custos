@@ -10,6 +10,7 @@ import { ContasService } from '../contas/contas.service';
 import { TransacoesService } from '../transacoes/transacoes.service';
 import { OrigemTransacao, TipoTransacao } from '../transacoes/transacao.entity';
 import { UsuariosService } from '../usuarios/usuarios.service';
+import { MetasPoupancaService } from '../metas-poupanca/metas-poupanca.service';
 
 @Injectable()
 export class WhatsappBotService {
@@ -26,6 +27,7 @@ export class WhatsappBotService {
     private readonly contasService: ContasService,
     private readonly transacoesService: TransacoesService,
     private readonly configService: ConfigService,
+    private readonly metasService: MetasPoupancaService,
   ) {}
 
   async processIncomingMessage(telefone: string, texto: string): Promise<string> {
@@ -140,7 +142,7 @@ export class WhatsappBotService {
       conversa.estado = EstadoConversa.IDLE;
       conversa.dadosRascunho = null as any;
       await this.conversaRepository.save(conversa);
-      return `👋 *Olá! Sou o seu assistente FinControl.*\n\nComo posso ajudar hoje?\n\n🔹 *Registar despesa:* "Almoço 3500 kz" ou "Taxi 2000 aoa"\n🔹 *Registar receita:* "Salário 350000 kz"\n🔹 *Consultar saldo:* "Saldo" ou "Consultar saldo"\n🔹 *Desfazer último:* "Errado" ou "Desfazer"`;
+      return `👋 *Olá! Sou o seu assistente FinControl.*\n\nComo posso ajudar hoje?\n\n🔹 *Registar despesa:* "Almoço 3500 kz"\n🔹 *Registar receita:* "Salário 350000 kz"\n🔹 *Consultar saldo:* "Saldo" ou "Resumo"\n🔹 *Ver Pés-de-Meia:* "Pé-de-meia"\n🔹 *Guardar no Pé-de-Meia:* "Guardar 5000 kz viagem"\n🔹 *Resgatar do Pé-de-Meia:* "Resgatar 2000 kz viagem"\n🔹 *Criar Pé-de-Meia:* "Criar pé de meia Carro 500000"\n🔹 *Desfazer último:* "Errado" ou "Desfazer"`;
     }
 
     // Comando Consultar Saldo / Resumo
@@ -160,6 +162,146 @@ export class WhatsappBotService {
       } catch (err: any) {
         this.logger.error(`[SALDO] Erro ao consultar dashboard: ${err?.message}`);
         return '📊 *FinControl:* Não foi possível consultar o saldo agora. Tente novamente em instantes.';
+      }
+    }
+
+    // Comando Criar Pé-de-Meia pelo WhatsApp
+    const matchCriarPe = raw.match(/^(?:criar|novo|nova)\s+(?:pe[- ]de[- ]meia|pede[- ]meia|poupanca|poupança|cofrinho|meta)\s+(.+?)\s+(\d+(?:[.,]\d+)?)(?:\s*(?:kz|aoa))?$/i);
+    if (matchCriarPe) {
+      conversa.estado = EstadoConversa.IDLE;
+      conversa.dadosRascunho = null as any;
+      await this.conversaRepository.save(conversa);
+
+      const nome = matchCriarPe[1].trim();
+      const valorAlvo = parseFloat(matchCriarPe[2].replace(',', '.'));
+      const formatKz = (v: number) => new Intl.NumberFormat('pt-AO', { minimumFractionDigits: 0 }).format(v) + ' Kz';
+
+      try {
+        const nova = await this.metasService.create({
+          nome,
+          valorObjetivo: valorAlvo,
+        }, usuarioId);
+
+        return `🎉 *Pé-de-Meia "${nova.nome}" criado com sucesso!*\n\n🎯 *Objetivo:* ${formatKz(valorAlvo)}\n💰 *Guardado:* 0 Kz (0%)\n\n_Para começar a guardar dinheiro, envie:_\n*"Guardar 5000 ${nova.nome}"*`;
+      } catch (err: any) {
+        return `⚠️ Erro ao criar pé-de-meia: ${err?.message || 'Tente novamente.'}`;
+      }
+    }
+
+    // Comando Ver / Listar Pés-de-Meia
+    if (
+      ['pe de meia', 'pe-de-meia', 'pede-meia', 'pedemeia', 'poupanca', 'poupança', 'cofrinho', 'cofrinhos', 'metas'].includes(raw) ||
+      raw === 'ver pe de meia' || raw === 'ver pé de meia' || raw === 'meu pe de meia' || raw === 'meus pes de meia' || raw === 'meus pés de meia'
+    ) {
+      conversa.estado = EstadoConversa.IDLE;
+      conversa.dadosRascunho = null as any;
+      await this.conversaRepository.save(conversa);
+
+      const metas = await this.metasService.findAll(usuarioId);
+      const formatKz = (v: number) => new Intl.NumberFormat('pt-AO', { minimumFractionDigits: 0 }).format(v) + ' Kz';
+
+      if (!metas || metas.length === 0) {
+        return `🧦 *Pé-de-Meia (Poupança & Metas)*\n\nAinda não tem nenhum pé-de-meia criado!\n\n💡 *Para criar um pé-de-meia agora, envie:*\n"Criar pé de meia [Nome] [Valor]"\n_Exemplo: Criar pé de meia Viagem 100000 kz_`;
+      }
+
+      let textoMetas = `🧦 *Seus Pés-de-Meia (Poupança & Metas)*\n\n`;
+      for (const m of metas) {
+        const guardado = Number(m.valorAcumulado || 0);
+        const alvo = Number(m.valorObjetivo || 1);
+        const perc = Math.min(Math.round((guardado / alvo) * 100), 100);
+        const barraLen = 8;
+        const preenchido = Math.round((perc / 100) * barraLen);
+        const barra = '▓'.repeat(preenchido) + '░'.repeat(barraLen - preenchido);
+
+        textoMetas += `🎯 *${m.nome}*\n[${barra}] ${perc}%\n💰 Guardado: *${formatKz(guardado)}* de ${formatKz(alvo)}\n\n`;
+      }
+
+      textoMetas += `_Dicas rápidas:_\n🔹 *Guardar:* "Guardar 5000 [Nome]"\n🔹 *Resgatar:* "Resgatar 2000 [Nome]"`;
+      return textoMetas;
+    }
+
+    // Comando Guardar / Depositar no Pé-de-Meia
+    const matchGuardar = raw.match(/^(?:guardar|depositar|poupar|meter)\s+(\d+(?:[.,]\d+)?)(?:\s*(?:kz|aoa))?(?:\s+(?:no|para|em|ao|na)?\s*(?:pe[- ]de[- ]meia|pede[- ]meia|poupanca|poupança|cofrinho|meta)?)?(?:\s+(.+))?$/i);
+    if (matchGuardar) {
+      conversa.estado = EstadoConversa.IDLE;
+      conversa.dadosRascunho = null as any;
+      await this.conversaRepository.save(conversa);
+
+      const valor = parseFloat(matchGuardar[1].replace(',', '.'));
+      const termoNome = matchGuardar[2]?.trim().toLowerCase();
+      const formatKz = (v: number) => new Intl.NumberFormat('pt-AO', { minimumFractionDigits: 0 }).format(v) + ' Kz';
+
+      const metas = await this.metasService.findAll(usuarioId);
+      if (!metas || metas.length === 0) {
+        return `⚠️ Você ainda não tem nenhum pé-de-meia criado.\n\nCrie um primeiro enviando:\n*"Criar pé de meia ${termoNome ? termoNome : 'Geral'} 50000"*`;
+      }
+
+      let metaAlvo: any = null;
+      if (termoNome) {
+        metaAlvo = metas.find(m => m.nome.toLowerCase().includes(termoNome) || termoNome.includes(m.nome.toLowerCase()));
+      }
+      if (!metaAlvo && metas.length === 1) {
+        metaAlvo = metas[0];
+      }
+
+      if (!metaAlvo) {
+        const nomes = metas.map(m => `• *${m.nome}*`).join('\n');
+        return `⚠️ Tem mais do que um pé-de-meia. Indique em qual quer guardar:\n\n${nomes}\n\nEnvie: *"Guardar ${valor} [Nome]"*`;
+      }
+
+      try {
+        const atualizada = await this.metasService.adicionarContribuicao(metaAlvo.id, valor, usuarioId);
+        const guardado = Number(atualizada.valorAcumulado || 0);
+        const alvo = Number(atualizada.valorObjetivo || 1);
+        const perc = Math.min(Math.round((guardado / alvo) * 100), 100);
+        const restante = Math.max(alvo - guardado, 0);
+
+        return `🧦 *Pé-de-Meia Atualizado! (+${formatKz(valor)})*\n\n🎯 *${atualizada.nome}*\n💰 *Total Guardado:* ${formatKz(guardado)} de ${formatKz(alvo)} (${perc}%)\n${perc >= 100 ? '🎉 *Parabéns! Objetivo atingido!*' : `⏳ Faltam ${formatKz(restante)} para atingir a meta.`}`;
+      } catch (err: any) {
+        return `⚠️ Erro ao depositar no pé-de-meia: ${err?.message || 'Tente novamente.'}`;
+      }
+    }
+
+    // Comando Resgatar / Retirar do Pé-de-Meia
+    const matchResgatar = raw.match(/^(?:resgatar|retirar|sacar|tirar)\s+(\d+(?:[.,]\d+)?)(?:\s*(?:kz|aoa))?(?:\s+(?:do|de|da)?\s*(?:pe[- ]de[- ]meia|pede[- ]meia|poupanca|poupança|cofrinho|meta)?)?(?:\s+(.+))?$/i);
+    if (matchResgatar) {
+      conversa.estado = EstadoConversa.IDLE;
+      conversa.dadosRascunho = null as any;
+      await this.conversaRepository.save(conversa);
+
+      const valor = parseFloat(matchResgatar[1].replace(',', '.'));
+      const termoNome = matchResgatar[2]?.trim().toLowerCase();
+      const formatKz = (v: number) => new Intl.NumberFormat('pt-AO', { minimumFractionDigits: 0 }).format(v) + ' Kz';
+
+      const metas = await this.metasService.findAll(usuarioId);
+      if (!metas || metas.length === 0) {
+        return `⚠️ Você ainda não tem nenhum pé-de-meia criado.`;
+      }
+
+      let metaAlvo: any = null;
+      if (termoNome) {
+        metaAlvo = metas.find(m => m.nome.toLowerCase().includes(termoNome) || termoNome.includes(m.nome.toLowerCase()));
+      }
+      if (!metaAlvo && metas.length === 1) {
+        metaAlvo = metas[0];
+      }
+
+      if (!metaAlvo) {
+        const nomes = metas.map(m => `• *${m.nome}*`).join('\n');
+        return `⚠️ Tem mais do que um pé-de-meia. Indique de qual quer resgatar:\n\n${nomes}\n\nEnvie: *"Resgatar ${valor} [Nome]"*`;
+      }
+
+      const atual = Number(metaAlvo.valorAcumulado || 0);
+      if (atual < valor) {
+        return `⚠️ *Saldo insuficiente no pé-de-meia "${metaAlvo.nome}"!*\n\n💰 Saldo guardado: *${formatKz(atual)}*.\nTentou resgatar *${formatKz(valor)}*.`;
+      }
+
+      try {
+        const atualizada = await this.metasService.resgatar(metaAlvo.id, valor, usuarioId);
+        const guardado = Number(atualizada.valorAcumulado || 0);
+        return `💸 *Resgate Efetuado com Sucesso! (-${formatKz(valor)})*\n\n🎯 *${atualizada.nome}*\n💰 *Saldo Restante Guardado:* ${formatKz(guardado)}`;
+      } catch (err: any) {
+        return `⚠️ Erro ao resgatar do pé-de-meia: ${err?.message || 'Tente novamente.'}`;
       }
     }
 

@@ -10,6 +10,7 @@ import { UsuariosModule } from '../usuarios/usuarios.module';
 import { CategoriasModule } from '../categorias/categorias.module';
 import { ContasModule } from '../contas/contas.module';
 import { TransacoesModule } from '../transacoes/transacoes.module';
+import { MetasPoupancaModule } from '../metas-poupanca/metas-poupanca.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { TransacoesModule } from '../transacoes/transacoes.module';
     CategoriasModule,
     ContasModule,
     TransacoesModule,
+    MetasPoupancaModule,
   ],
   controllers: [WhatsappWebhookController],
   providers: [WhatsappParserService, WhatsappBotService, WhatsappPollerService],

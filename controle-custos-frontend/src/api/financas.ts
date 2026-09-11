@@ -116,6 +116,11 @@ export const metasPoupancaApi = {
       method: 'POST',
       body: JSON.stringify({ valor }),
     }),
+  resgatar: (id: string, valor: number) =>
+    apiClient<MetaPoupanca>(`/metas-poupanca/${id}/resgatar`, {
+      method: 'POST',
+      body: JSON.stringify({ valor }),
+    }),
   remover: (id: string) => apiClient<void>(`/metas-poupanca/${id}`, { method: 'DELETE' }),
 };
 

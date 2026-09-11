@@ -71,7 +71,7 @@ const navItems: NavItem[] = [
     categoria: 'planeamento',
   },
   {
-    label: 'Rendimentos & Metas',
+    label: 'Pé-de-Meia & Rendimentos',
     icon: PiggyBank,
     path: '/rendimentos',
     categoria: 'planeamento',

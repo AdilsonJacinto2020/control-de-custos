@@ -40,6 +40,15 @@ export class MetasPoupancaController {
     return this.service.adicionarContribuicao(id, valor, user.id);
   }
 
+  @Post(':id/resgatar')
+  resgatar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('valor') valor: number,
+    @CurrentUser() user: Usuario,
+  ) {
+    return this.service.resgatar(id, valor, user.id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: Usuario) {

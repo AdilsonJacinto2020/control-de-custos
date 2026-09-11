@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, PiggyBank, Plus, Trash2, RefreshCw, AlertCircle, Coins, LineChart } from 'lucide-react';
+import { PiggyBank, Plus, Trash2, RefreshCw, AlertCircle, Coins, LineChart } from 'lucide-react';
 import { fontesRendimentoApi, metasPoupancaApi, projecaoApi } from '../api/financas';
 import type { FonteRendimento, MetaPoupanca, PontoProjecao, TipoRendimento, PeriodicidadeRendimento, PrioridadeMeta } from '../types';
 
@@ -97,13 +97,26 @@ export const MetasRendimentoView: React.FC = () => {
     }
   }
 
+  async function handleResgatar(metaId: string) {
+    const val = Number(contribuicaoValor[metaId]);
+    if (!val || val <= 0) return;
+
+    try {
+      await metasPoupancaApi.resgatar(metaId, val);
+      setContribuicaoValor((prev) => ({ ...prev, [metaId]: '' }));
+      await carregarDados();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Erro ao resgatar valor do pé-de-meia');
+    }
+  }
+
   async function handleRemoverMeta(id: string) {
-    if (!confirm('Deseja excluir esta meta?')) return;
+    if (!confirm('Deseja excluir este pé-de-meia?')) return;
     try {
       await metasPoupancaApi.remover(id);
       await carregarDados();
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Erro ao remover meta');
+      setErro(err instanceof Error ? err.message : 'Erro ao remover pé-de-meia');
     }
   }
 
@@ -121,8 +134,8 @@ export const MetasRendimentoView: React.FC = () => {
     <div className="module-container">
       <div className="module-header">
         <div className="flex items-center gap-2">
-          <TrendingUp className="text-primary" size={24} />
-          <h2>Rendimentos, Projeção & Metas de Poupança</h2>
+          <PiggyBank className="text-purple-400" size={26} />
+          <h2>Pé-de-Meia, Rendimentos & Projeções</h2>
         </div>
         <button onClick={carregarDados} className="btn-secondary" title="Atualizar">
           <RefreshCw size={16} />
@@ -250,17 +263,27 @@ export const MetasRendimentoView: React.FC = () => {
           </div>
         </section>
 
-        {/* Bloco 2: Metas de Poupança */}
+        {/* Bloco 2: Pé-de-Meia (Poupança & Metas) */}
         <section className="card">
-          <h3>
-            <PiggyBank size={18} className="text-purple-500" /> Metas de Poupança
-          </h3>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="m-0 flex items-center gap-2">
+              <PiggyBank size={20} className="text-purple-400" /> Pé-de-Meia (Poupança & Metas)
+            </h3>
+            <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded border border-purple-500/30 font-semibold">
+              {metas.length} {metas.length === 1 ? 'fundo' : 'fundos'}
+            </span>
+          </div>
+
+          <div style={{ background: 'rgba(168, 85, 247, 0.08)', border: '1px solid rgba(168, 85, 247, 0.25)', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#e9d5ff', marginBottom: '16px' }}>
+            📱 <strong>Dica WhatsApp:</strong> Envie <em>"Pé-de-meia"</em> para ver o saldo, ou <em>"Guardar 5000 kz [Nome]"</em> e <em>"Resgatar 2000 kz [Nome]"</em> diretamente pelo bot.
+          </div>
+
           <form onSubmit={handleCriarMeta} className="despesa-form mb-4">
             <label>
-              Nome do Objetivo
+              Nome do Pé-de-Meia
               <input
                 type="text"
-                placeholder="Ex: Fundo de Emergência, Viagem, Carro..."
+                placeholder="Ex: Viagem, Fundo de Emergência, Reforma, Carro..."
                 value={nomeMeta}
                 onChange={(e) => setNomeMeta(e.target.value)}
                 required
@@ -292,21 +315,31 @@ export const MetasRendimentoView: React.FC = () => {
             </div>
 
             <button type="submit" className="btn-primary">
-              <Plus size={16} /> Criar Meta
+              <Plus size={16} /> Criar Novo Pé-de-Meia
             </button>
           </form>
 
           <div className="metas-list">
-            {metas.map((m) => {
+            {metas.length === 0 ? (
+              <div className="empty-state text-sm py-4">Nenhum pé-de-meia criado ainda. Crie o seu primeiro fundo acima ou via WhatsApp!</div>
+            ) : metas.map((m) => {
               const perc = Math.min(
                 Math.round(((m.valorAcumulado || 0) / (m.valorAlvo || 1)) * 100),
                 100,
               );
+              const atingida = perc >= 100;
               return (
                 <div key={m.id} className="meta-card-item">
                   <div className="flex justify-between items-center mb-1">
-                    <strong>{m.nome}</strong>
-                    <button onClick={() => handleRemoverMeta(m.id)} className="btn-danger-ghost">
+                    <div className="flex items-center gap-2">
+                      <strong>{m.nome}</strong>
+                      {atingida && (
+                        <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)', fontWeight: 'bold' }}>
+                          🎉 Concluído
+                        </span>
+                      )}
+                    </div>
+                    <button onClick={() => handleRemoverMeta(m.id)} className="btn-danger-ghost" title="Remover Pé-de-Meia">
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -323,27 +356,40 @@ export const MetasRendimentoView: React.FC = () => {
                   <div className="progress-bar-track mb-3">
                     <div
                       className="progress-bar-fill"
-                      style={{ width: `${perc}%`, backgroundColor: '#a855f7' }}
+                      style={{ width: `${perc}%`, backgroundColor: atingida ? '#10b981' : '#a855f7' }}
                     />
                   </div>
 
-                  {/* Depósito / Contribuição */}
-                  <div className="flex items-center gap-2">
+                  {/* Operações de Depósito e Resgate */}
+                  <div className="flex items-center gap-2 flex-wrap">
                     <input
                       type="number"
-                      placeholder="Valor p/ depositar..."
+                      placeholder="Quantia (Kz)..."
                       value={contribuicaoValor[m.id] || ''}
                       onChange={(e) =>
                         setContribuicaoValor((prev) => ({ ...prev, [m.id]: e.target.value }))
                       }
                       className="deposit-input"
+                      style={{ flex: '1', minWidth: '130px' }}
                     />
                     <button
                       type="button"
                       onClick={() => handleContribuir(m.id)}
-                      className="btn-secondary btn-sm"
+                      className="btn-primary btn-sm"
+                      title="Adicionar valor ao pé-de-meia"
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
                     >
-                      Depositar
+                      + Depositar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleResgatar(m.id)}
+                      className="btn-secondary btn-sm"
+                      title="Retirar dinheiro guardado deste pé-de-meia"
+                      disabled={!Number(m.valorAcumulado || 0)}
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                    >
+                      - Resgatar
                     </button>
                   </div>
                 </div>
