@@ -1,0 +1,15 @@
+name: WhatsApp Poller
+
+on:
+  schedule:
+    # Executa periodicamente via GitHub Actions
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Permite disparar manualmente pelo painel do GitHub
+
+jobs:
+  poll-whatsapp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar Poller do FinControl WhatsApp
+        run: |
+          curl -s "https://control-de-custos.vercel.app/api/poll-messages?key=fincontrol_secret_key_2026"
