@@ -425,7 +425,7 @@ export class WhatsappBotService {
     // 1. Prioridade: Evolution API (se configurada EVOLUTION_API_URL)
     const evolutionUrl = this.configService.get<string>('EVOLUTION_API_URL');
     const evolutionApiKey = this.configService.get<string>('EVOLUTION_API_KEY');
-    const evolutionInstance = this.configService.get<string>('EVOLUTION_INSTANCE_NAME') || 'fincontrol';
+    const evolutionInstance = this.configService.get<string>('EVOLUTION_INSTANCE_NAME') || 'fincontrol_bot';
 
     if (evolutionUrl && evolutionApiKey) {
       try {

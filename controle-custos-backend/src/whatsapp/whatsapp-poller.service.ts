@@ -25,7 +25,7 @@ export class WhatsappPollerService {
   async pollAndProcess(): Promise<{ processed: number; errors: number; lastId: string | null }> {
     const evolutionUrl = this.configService.get<string>('EVOLUTION_API_URL');
     const evolutionApiKey = this.configService.get<string>('EVOLUTION_API_KEY');
-    const evolutionInstance = this.configService.get<string>('EVOLUTION_INSTANCE_NAME') || 'fincontrol';
+    const evolutionInstance = this.configService.get<string>('EVOLUTION_INSTANCE_NAME') || 'fincontrol_bot';
 
     if (!evolutionUrl || !evolutionApiKey) {
       this.logger.warn('[POLLER] EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados');

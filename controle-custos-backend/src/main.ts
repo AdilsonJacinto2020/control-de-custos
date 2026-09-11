@@ -252,7 +252,7 @@ export default async function handler(req: any, res: any) {
     try {
       const evUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
       const evKey = process.env.EVOLUTION_API_KEY || '';
-      const evInst = process.env.EVOLUTION_INSTANCE_NAME || 'fincontrol';
+      const evInst = process.env.EVOLUTION_INSTANCE_NAME || 'fincontrol_bot';
       if (evUrl && evKey) {
         const evRes = await fetch(`${evUrl}/chat/findMessages/${evInst}`, {
           method: 'POST',
@@ -577,7 +577,7 @@ export default async function handler(req: any, res: any) {
     try {
       const evolutionUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
       const evolutionApiKey = process.env.EVOLUTION_API_KEY || '';
-      const evolutionInstance = process.env.EVOLUTION_INSTANCE_NAME || 'fincontrol';
+      const evolutionInstance = process.env.EVOLUTION_INSTANCE_NAME || 'fincontrol_bot';
 
       if (!evolutionUrl || !evolutionApiKey) {
         return res.status(200).json({ status: 'skipped', reason: 'EVOLUTION_API_URL ou EVOLUTION_API_KEY em falta' });
