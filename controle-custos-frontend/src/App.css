@@ -648,90 +648,142 @@
   font-weight: 600;
 }
 
-/* ====== Responsividade Mobile First ====== */
+/* ====== Responsividade Mobile First Aprimorada (Samsung A32 / Telas Compactas) ====== */
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column;
-    padding-bottom: 70px; /* Espaço para a barra inferior fixa */
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 12px));
+    width: 100%;
+    overflow-x: hidden;
   }
 
   .app-sidebar {
-    display: none; /* Em mobile, a navegação principal fica no bottom bar */
-  }
-
-  .top-bar {
-    padding: 10px 14px;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    border-bottom: 1px solid var(--border-subtle);
+    display: none;
   }
 
   .page-content-wrapper {
-    padding: 14px 12px;
+    padding: 12px 10px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
+  /* Seletor de Período e Botões Superiores */
+  .select-periodo {
+    font-size: 13px;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+
+  /* Cards de Estatísticas em Mobile */
   .stat-row {
     grid-template-columns: 1fr;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
+  }
+
+  .stat-card {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .stat-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .stat-value {
+    font-size: 19px;
   }
 
   .grid-2col {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 14px;
   }
 
   .content {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 14px;
   }
 
-  /* Bottom Navigation Bar Fixa Mobile */
-  .mobile-bottom-nav {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background-color: var(--bg-card);
-    border-top: 1px solid var(--border-strong);
-    z-index: 50;
-    justify-content: space-around;
-    align-items: center;
-    padding: 0 4px;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.25);
+  /* Formulários e Inputs Adaptados para Toque (44px min-height) */
+  .despesa-form label {
+    font-size: 13px;
+    margin-bottom: 12px;
   }
 
-  .mobile-nav-btn {
+  .despesa-form input,
+  .despesa-form select,
+  .despesa-form textarea {
+    font-size: 16px !important; /* Previne auto-zoom indesejado no iOS e Android */
+    padding: 11px 12px;
+    min-height: 44px;
+    border-radius: 4px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .tipo-btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+  }
+
+  .tipo-btn {
+    padding: 10px 4px;
+    font-size: 10px;
+    min-height: 44px;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    flex: 1;
-    height: 100%;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.1s ease;
+    text-align: center;
   }
 
-  .mobile-nav-btn.active {
-    color: var(--accent-brand);
-    border-top: 2px solid var(--accent-brand);
+  .btn-primary {
+    min-height: 46px;
+    font-size: 14px;
+    padding: 12px 16px;
+    width: 100%;
+  }
+
+  .btn-secondary {
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+
+  /* Tabelas com Scroll Horizontal Suave */
+  .tabela-wrapper,
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    margin-top: 8px;
+    border: 1px solid var(--border-subtle);
+  }
+
+  table {
+    min-width: 520px; /* Garante que os dados da tabela não fiquem esmagados */
+  }
+
+  /* Timeline de Projeção em Mobile */
+  .projecao-timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .projecao-month-card {
+    padding: 10px !important;
   }
 }
 
-@media (min-width: 769px) {
-  .mobile-bottom-nav {
-    display: none;
+@media (max-width: 420px) {
+  /* Otimizações extremas para ecrãs menores de 420px (como A32 com escala de fonte alta) */
+  .tipo-btn-group {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .projecao-timeline-grid {
+    grid-template-columns: 1fr !important;
   }
 }

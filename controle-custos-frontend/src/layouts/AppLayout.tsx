@@ -143,8 +143,8 @@ export function AppLayout() {
   // Itens em destaque na barra inferior mobile (Estilo Gestão-SIS com Bottom Sheet)
   const bottomNavItems = [
     { label: 'Painel', icon: Layers, path: '/' },
+    { label: 'Pé-de-Meia', icon: PiggyBank, path: '/rendimentos' },
     { label: 'Contas', icon: Wallet, path: '/contas' },
-    { label: 'Categorias', icon: FolderTree, path: '/categorias' },
     { label: 'Orçamentos', icon: Target, path: '/orcamentos' },
   ];
 
@@ -278,6 +278,13 @@ export function AppLayout() {
       <div className="layout-main-viewport">
         {/* TOPBAR COMPACTA & ELEGANTE */}
         <header className="layout-topbar">
+          {/* Logo FinControl visível apenas em Mobile */}
+          <div className="topbar-mobile-logo">
+            <Link to="/" className="flex items-center no-underline" title="FinControl">
+              <FinControlLogo height={24} />
+            </Link>
+          </div>
+
           {/* Lado Esquerdo: Widget de Gamificação / XP Compacto e Elegante */}
           <div className="topbar-gamification">
             <div className="topbar-streak-chip">

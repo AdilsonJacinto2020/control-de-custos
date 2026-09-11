@@ -267,6 +267,10 @@
   backdrop-filter: blur(8px);
 }
 
+.topbar-mobile-logo {
+  display: none;
+}
+
 .topbar-gamification {
   display: flex;
   align-items: center;
@@ -443,22 +447,77 @@
   }
 
   .layout-root {
-    padding-bottom: 72px; /* Espaço para a barra inferior fixa */
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 12px)); /* Espaço seguro para navegação móvel e gestos */
+    overflow-x: hidden;
+    width: 100%;
   }
 
   .layout-topbar {
     padding: 8px 12px;
+    padding-top: max(8px, env(safe-area-inset-top, 8px));
     height: auto;
-    min-height: 54px;
+    min-height: 52px;
     gap: 8px;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .topbar-mobile-logo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   .topbar-gamification {
-    gap: 8px;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .topbar-streak-chip {
+    padding: 3px 6px;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .topbar-streak-num {
+    font-size: 11px;
   }
 
   .topbar-xp-chip {
+    padding: 3px 6px;
+    min-width: 0;
+  }
+
+  .xp-level-title {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar-btn-checkin {
     padding: 4px 8px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  .topbar-btn-checkin span {
+    display: none;
+  }
+
+  .topbar-right-actions {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .topbar-user-pill {
+    padding: 2px 6px 2px 2px;
+  }
+
+  .topbar-user-name {
+    display: none;
   }
 
   .xp-fraction {
@@ -466,7 +525,11 @@
   }
 
   .layout-page-content {
-    padding: 14px 12px;
+    padding: 12px 10px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   /* Barra de Navegação Inferior Fixa Mobile */
@@ -476,14 +539,16 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     background-color: var(--bg-card);
     border-top: 1px solid var(--border-strong);
     z-index: 50;
     justify-content: space-around;
     align-items: center;
-    padding: 0 4px;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.25);
+    padding-left: 2px;
+    padding-right: 2px;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
   }
 
   .mobile-nav-link {
