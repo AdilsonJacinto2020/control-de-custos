@@ -377,12 +377,161 @@ export default async function handler(req: any, res: any) {
       return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
     }
 
-    // DESATIVADO TEMPORARIAMENTE: Evita que o cron crie gastos automaticamente
-    return res.status(200).json({
-      status: 'paused',
-      message: 'Polling automático desativado temporariamente para evitar criação indevida de transações.',
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      const evolutionUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
+      const evolutionApiKey = process.env.EVOLUTION_API_KEY || '';
+      const evolutionInstance = process.env.EVOLUTION_INSTANCE_NAME || 'fincontrol';
+
+      if (!evolutionUrl || !evolutionApiKey) {
+        return res.status(200).json({ status: 'skipped', reason: 'EVOLUTION_API_URL ou EVOLUTION_API_KEY em falta' });
+      }
+
+      const { Client } = await import('pg');
+      const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      await client.connect();
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_poller_state (
+          key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS whatsapp_processed_ids (
+          message_id TEXT PRIMARY KEY,
+          telefone TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_whatsapp_processed_ids_created_at ON whatsapp_processed_ids (created_at);
+      `);
+
+      // Limpar IDs com mais de 7 dias
+      await client.query(`DELETE FROM whatsapp_processed_ids WHERE created_at < NOW() - INTERVAL '7 days'`).catch(() => {});
+
+      const stateRow = await client.query(
+        `SELECT value FROM whatsapp_poller_state WHERE key = 'last_processed_message_at'`
+      );
+      const lastProcessedAt = stateRow.rows.length > 0 ? new Date(stateRow.rows[0].value) : null;
+      // Olhar no máximo 3 minutos para trás para não ressuscitar histórico antigo
+      const tresMinutosAtras = new Date(Date.now() - 3 * 60 * 1000);
+      const sinceDate = lastProcessedAt && lastProcessedAt > tresMinutosAtras
+        ? new Date(lastProcessedAt.getTime() - 1000)
+        : tresMinutosAtras;
+
+      const evResp = await fetch(`${evolutionUrl}/chat/findMessages/${evolutionInstance}`, {
+        method: 'POST',
+        headers: { 'apikey': evolutionApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          where: {
+            key: { fromMe: false },
+            messageTimestamp: { gte: Math.floor(sinceDate.getTime() / 1000) },
+          },
+          limit: 10,
+        }),
+      });
+
+      const evData = await evResp.json().catch(() => ({}));
+      const mensagens: any[] = (evData?.messages?.records || evData?.records || [])
+        .sort((a: any, b: any) => (a.messageTimestamp || 0) - (b.messageTimestamp || 0));
+
+      let processed = 0;
+      let skipped = 0;
+      let newestTimestamp: Date | null = null;
+      const log: any[] = [];
+
+      for (const msg of mensagens) {
+        const msgId = msg.id || msg.key?.id;
+        const msgTimestamp = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000) : null;
+
+        // Atualizar sempre o cursor para o timestamp mais recente encontrado
+        if (!newestTimestamp || (msgTimestamp && msgTimestamp > newestTimestamp)) {
+          newestTimestamp = msgTimestamp;
+        }
+
+        // Ignorar se já for mais antiga que o cursor conhecido
+        if (lastProcessedAt && msgTimestamp && msgTimestamp <= lastProcessedAt) {
+          skipped++;
+          continue;
+        }
+
+        // Deduplicação estrita: verificar se já processamos este ID específico
+        if (msgId) {
+          const alreadyProcessed = await client.query(
+            `SELECT 1 FROM whatsapp_processed_ids WHERE message_id = $1`,
+            [msgId]
+          );
+          if (alreadyProcessed.rows.length > 0) {
+            skipped++;
+            continue;
+          }
+        }
+
+        const key = msg.key;
+        let telefone: string | null = null;
+        if (key?.remoteJidAlt) {
+          telefone = String(key.remoteJidAlt).replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
+        } else if (key?.remoteJid && !key.remoteJid.includes('@lid')) {
+          telefone = String(key.remoteJid).replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
+        }
+        const message = msg.message;
+        const texto: string | null = message?.conversation || message?.extendedTextMessage?.text || null;
+
+        const logEntry = { id: msgId, tel: telefone, txt: texto, ts: msgTimestamp?.toISOString() };
+        log.push(logEntry);
+
+        if (!telefone || !texto) {
+          skipped++;
+          if (msgId) {
+            await client.query(
+              `INSERT INTO whatsapp_processed_ids (message_id, telefone) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [msgId, telefone || 'unknown']
+            );
+          }
+          continue;
+        }
+
+        // Marcar ID imediatamente antes de chamar o bot para evitar repetições em chamadas simultâneas
+        if (msgId) {
+          await client.query(
+            `INSERT INTO whatsapp_processed_ids (message_id, telefone) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [msgId, telefone]
+          );
+        }
+
+        try {
+          if (!isInitialized) { await bootstrap(); isInitialized = true; }
+
+          const botService = nestAppInstance?.get(WhatsappBotService);
+
+          if (botService) {
+            console.log(`[POLL] Processando mensagem: tel='${telefone}', txt='${texto}'`);
+            const reply = await botService.processIncomingMessage(telefone, texto);
+            console.log(`[POLL] Resposta:`, reply);
+            processed++;
+          }
+        } catch (err: any) {
+          console.error('[POLL] Erro ao processar:', err?.message);
+        }
+      }
+
+      // Guardar sempre o timestamp mais recente processado
+      if (newestTimestamp) {
+        await client.query(`
+          INSERT INTO whatsapp_poller_state (key, value, updated_at) VALUES ('last_processed_message_at', $1, NOW())
+          ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
+        `, [newestTimestamp.toISOString()]);
+      }
+      await client.end().catch(() => {});
+
+      return res.status(200).json({
+        status: 'ok',
+        found: mensagens.length,
+        processed,
+        skipped,
+        log,
+        polledAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error('[POLL] Erro geral:', err?.message);
+      return res.status(500).json({ status: 'error', error: err?.message });
+    }
   }
 
   // Endpoint de teste de envio direto via Meta Cloud API para diagnóstico

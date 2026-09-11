@@ -34,28 +34,46 @@ export class WhatsappParserService {
       moeda = 'AOA';
     } else {
       const matchComMoeda = texto.match(valorComMoedaRegex);
-      const matchValor = matchComMoeda
-        ? matchComMoeda[0].match(/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)?/i)
-        : texto.match(numeroGeralRegex);
+      if (matchComMoeda) {
+        const matchValor = matchComMoeda[0].match(/(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(kz|kwanza|kwanzas|aoa|usd|\$|eur|€)?/i);
+        if (matchValor) {
+          let numStr = matchValor[1];
+          if (numStr.includes('.') && numStr.includes(',')) {
+            numStr = numStr.replace(/\./g, '').replace(',', '.');
+          } else if (numStr.includes('.') && (numStr.match(/\./g) || []).length === 1 && numStr.split('.')[1].length === 3) {
+            numStr = numStr.replace('.', '');
+          } else {
+            numStr = numStr.replace(',', '.');
+          }
 
-      if (matchValor) {
-        let numStr = matchValor[1];
-        if (numStr.includes('.') && numStr.includes(',')) {
-          numStr = numStr.replace(/\./g, '').replace(',', '.');
-        } else if (numStr.includes('.') && (numStr.match(/\./g) || []).length === 1 && numStr.split('.')[1].length === 3) {
-          numStr = numStr.replace('.', '');
-        } else {
-          numStr = numStr.replace(',', '.');
+          valor = parseFloat(numStr);
+
+          const indicMoeda = (matchValor[2] || '').toLowerCase();
+          if (indicMoeda.includes('usd') || indicMoeda === '$') {
+            moeda = 'USD';
+          } else if (indicMoeda.includes('eur') || indicMoeda === '€') {
+            moeda = 'EUR';
+          } else {
+            moeda = 'AOA';
+          }
         }
-
-        valor = parseFloat(numStr);
-
-        const indicMoeda = (matchValor[2] || '').toLowerCase();
-        if (indicMoeda.includes('usd') || indicMoeda === '$') {
-          moeda = 'USD';
-        } else if (indicMoeda.includes('eur') || indicMoeda === '€') {
-          moeda = 'EUR';
-        } else {
+      } else {
+        // Apenas aceita número geral se houver palavras de intenção financeira (ex: gastei, paguei, almoco 3500)
+        // Evita interpretar números soltos (como '7' ou códigos) como dinheiro
+        const matchValor = texto.match(numeroGeralRegex);
+        const palavrasFinanceiras = ['gastei', 'paguei', 'custou', 'comprei', 'recebi', 'ganhei', 'salario', 'salário', 'deposito', 'depósito', 'transferi'];
+        const temPalavraFinanceira = palavrasFinanceiras.some((w) => raw.includes(w));
+        
+        if (matchValor && temPalavraFinanceira) {
+          let numStr = matchValor[1];
+          if (numStr.includes('.') && numStr.includes(',')) {
+            numStr = numStr.replace(/\./g, '').replace(',', '.');
+          } else if (numStr.includes('.') && (numStr.match(/\./g) || []).length === 1 && numStr.split('.')[1].length === 3) {
+            numStr = numStr.replace('.', '');
+          } else {
+            numStr = numStr.replace(',', '.');
+          }
+          valor = parseFloat(numStr);
           moeda = 'AOA';
         }
       }
