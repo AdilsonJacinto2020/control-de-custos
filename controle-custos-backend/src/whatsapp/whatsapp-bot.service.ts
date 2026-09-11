@@ -135,28 +135,20 @@ export class WhatsappBotService {
       }
     }
 
-    // Se estiver aguardando escolha de categoria por número
-    if (conversa.estado === EstadoConversa.AGUARDANDO_CORRECAO_CATEGORIA && conversa.dadosRascunho) {
-      const idx = parseInt(raw, 10);
-      const opcoes = conversa.dadosRascunho.opcoesCategoria || [];
-      if (!isNaN(idx) && idx >= 1 && idx <= opcoes.length) {
-        const catEscolhida = opcoes[idx - 1];
-        conversa.dadosRascunho.categoriaId = catEscolhida.id;
-        conversa.dadosRascunho.confianca = 1.0;
-
-        // Persiste a transação com nome da categoria
-        const resposta = await this.finalizarTransacao(conversa, usuarioId, msgLog, undefined, catEscolhida.nome);
-        return resposta;
-      }
-    }
-
     // Comando Saudação / Ajuda
     if (['ola', 'olá', 'oi', 'menu', 'ajuda', 'help', 'iniciar', 'comecar', 'começar'].includes(raw)) {
+      conversa.estado = EstadoConversa.IDLE;
+      conversa.dadosRascunho = null as any;
+      await this.conversaRepository.save(conversa);
       return `👋 *Olá! Sou o seu assistente FinControl.*\n\nComo posso ajudar hoje?\n\n🔹 *Registar despesa:* "Almoço 3500 kz" ou "Taxi 2000 aoa"\n🔹 *Registar receita:* "Salário 350000 kz"\n🔹 *Consultar saldo:* "Saldo" ou "Consultar saldo"\n🔹 *Desfazer último:* "Errado" ou "Desfazer"`;
     }
 
     // Comando Consultar Saldo / Resumo
     if (raw.includes('saldo') || raw.includes('resumo') || raw.includes('extrato')) {
+      conversa.estado = EstadoConversa.IDLE;
+      conversa.dadosRascunho = null as any;
+      await this.conversaRepository.save(conversa);
+
       const mes = String(new Date().getMonth() + 1).padStart(2, '0');
       const ano = String(new Date().getFullYear());
       try {
@@ -168,6 +160,21 @@ export class WhatsappBotService {
       } catch (err: any) {
         this.logger.error(`[SALDO] Erro ao consultar dashboard: ${err?.message}`);
         return '📊 *FinControl:* Não foi possível consultar o saldo agora. Tente novamente em instantes.';
+      }
+    }
+
+    // Se estiver aguardando escolha de categoria por número (apenas se a mensagem for EXATAMENTE um dígito 1 a 9)
+    if (conversa.estado === EstadoConversa.AGUARDANDO_CORRECAO_CATEGORIA && conversa.dadosRascunho && /^\d+$/.test(raw)) {
+      const idx = parseInt(raw, 10);
+      const opcoes = conversa.dadosRascunho.opcoesCategoria || [];
+      if (!isNaN(idx) && idx >= 1 && idx <= opcoes.length) {
+        const catEscolhida = opcoes[idx - 1];
+        conversa.dadosRascunho.categoriaId = catEscolhida.id;
+        conversa.dadosRascunho.confianca = 1.0;
+
+        // Persiste a transação com nome da categoria
+        const resposta = await this.finalizarTransacao(conversa, usuarioId, msgLog, undefined, catEscolhida.nome);
+        return resposta;
       }
     }
 

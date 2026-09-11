@@ -147,6 +147,27 @@ export function DashboardPage() {
     }
   }
 
+  async function handleResetCiclo() {
+    const confirmacao = window.confirm(
+      '⚠️ ATENÇÃO: Deseja iniciar um NOVO CICLO?\n\nIsto irá apagar todas as transações e repor o saldo das suas contas a 0 Kz para que possa recomeçar do zero.\n\nTem a certeza que deseja continuar?'
+    );
+    if (!confirmacao) return;
+
+    setCarregando(true);
+    setErro(null);
+    try {
+      await transacoesApi.resetAll();
+      revalidator.revalidate();
+      const dados = await transacoesApi.obterDashboard(mesFiltro, anoFiltro);
+      setDashboard(dados);
+      alert('✅ Novo ciclo iniciado com sucesso! As transações anteriores foram limpas.');
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Erro ao reiniciar o ciclo financeiro.');
+    } finally {
+      setCarregando(false);
+    }
+  }
+
   const formatarKz = (val: number) =>
     Number(val || 0).toLocaleString('pt-AO', {
       minimumFractionDigits: 2,
@@ -191,13 +212,23 @@ export function DashboardPage() {
           </select>
         </div>
 
-        <button
-          onClick={() => handleMudarPeriodo(mesFiltro, anoFiltro)}
-          className="btn-secondary"
-          title="Recarregar"
-        >
-          <RefreshCw size={14} className={carregando || revalidator.state === 'loading' ? 'spin' : ''} /> Atualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleMudarPeriodo(mesFiltro, anoFiltro)}
+            className="btn-secondary flex items-center gap-1.5"
+            title="Recarregar"
+          >
+            <RefreshCw size={14} className={carregando || revalidator.state === 'loading' ? 'spin' : ''} /> Atualizar
+          </button>
+
+          <button
+            onClick={handleResetCiclo}
+            className="btn-secondary !text-rose-600 hover:!bg-rose-500/10 flex items-center gap-1.5 text-xs font-medium"
+            title="Limpar todos os dados e começar um novo ciclo do zero"
+          >
+            <Trash2 size={14} /> Novo Ciclo
+          </button>
+        </div>
       </div>
 
       <section className="stat-row">

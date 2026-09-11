@@ -325,6 +325,50 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // Endpoint de utilidade / diagnóstico para limpar gastos de uma conta (recomeçar ciclo do zero)
+  if (reqUrl.startsWith('/api/reset-user-transactions') || reqUrl.startsWith('/reset-user-transactions')) {
+    const debugKey = process.env.DEBUG_KEY;
+    if (!debugKey || req.query?.key !== debugKey) {
+      return res.status(404).json({ statusCode: 404, message: 'Cannot GET ' + reqUrl });
+    }
+
+    const email = req.query?.email || 'adijacinto.aj@gmail.com';
+    const { Client } = await import('pg');
+    const client = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    });
+
+    try {
+      await client.connect();
+      const userRes = await client.query(`SELECT id, nome, email FROM usuarios WHERE email = $1`, [email]);
+      if (userRes.rows.length === 0) {
+        await client.end();
+        return res.status(404).json({ status: 'user_not_found', email });
+      }
+
+      const userId = userRes.rows[0].id;
+      // 1. Apagar mensagens processadas
+      await client.query(`DELETE FROM mensagens_processadas WHERE "conversaId" IN (SELECT id FROM conversas_whatsapp WHERE "usuarioId" = $1)`, [userId]).catch(() => {});
+      // 2. Apagar transações
+      const transDel = await client.query(`DELETE FROM transacoes WHERE "usuarioId" = $1`, [userId]);
+      // 3. Resetar saldos das contas para 0
+      await client.query(`UPDATE contas SET "saldoAtual" = 0 WHERE "usuarioId" = $1`, [userId]);
+      // 4. Resetar estado da conversa de WhatsApp para IDLE
+      await client.query(`UPDATE conversas_whatsapp SET estado = 'IDLE', "dadosRascunho" = NULL, "ultimaTransacaoId" = NULL WHERE "usuarioId" = $1`, [userId]).catch(() => {});
+
+      await client.end();
+      return res.status(200).json({
+        status: 'success',
+        user: userRes.rows[0],
+        transacoesRemovidas: transDel.rowCount,
+        message: `Todas as transações do utilizador ${email} foram apagadas e os saldos foram redefinidos para 0 kz.`,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ status: 'error', error: err?.message });
+    }
+  }
+
   // Endpoint de polling activo da Evolution API — contorna bug MESSAGES_UPSERT com LID
   // Chamado pelo cron job a cada minuto: GET /api/poll-messages?key=DEBUG_KEY
   if (reqUrl.startsWith('/api/poll-messages') || reqUrl.startsWith('/poll-messages')) {

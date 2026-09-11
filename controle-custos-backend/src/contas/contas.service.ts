@@ -73,4 +73,8 @@ export class ContasService {
     // sem essa janela de corrida.
     await this.contasRepository.increment({ id: contaId }, 'saldoAtual', delta);
   }
+
+  async redefinirSaldosParaZero(usuarioId: string): Promise<void> {
+    await this.contasRepository.update({ usuarioId }, { saldoAtual: 0 });
+  }
 }

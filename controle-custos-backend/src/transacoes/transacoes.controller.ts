@@ -50,6 +50,11 @@ export class TransacoesController {
     return this.transacoesService.findOne(id, user.id);
   }
 
+  @Delete('reset-all')
+  resetAll(@CurrentUser() user: Usuario) {
+    return this.transacoesService.resetAll(user.id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: Usuario) {

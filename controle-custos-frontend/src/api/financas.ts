@@ -61,6 +61,7 @@ export const transacoesApi = {
       body: JSON.stringify(transacao),
     }),
   remover: (id: string) => apiClient<void>(`/transacoes/${id}`, { method: 'DELETE' }),
+  resetAll: () => apiClient<{ deletedCount: number }>('/transacoes/reset-all', { method: 'DELETE' }),
 };
 
 export const orcamentosApi = {

@@ -175,4 +175,11 @@ export class TransacoesService {
       transacoes,
     };
   }
+
+  async resetAll(usuarioId: string): Promise<{ deletedCount: number }> {
+    const result = await this.transacoesRepository.delete({ usuarioId });
+    // Resetar o saldo de todas as contas ativas do utilizador para 0
+    await this.contasService.redefinirSaldosParaZero(usuarioId);
+    return { deletedCount: result.affected || 0 };
+  }
 }
